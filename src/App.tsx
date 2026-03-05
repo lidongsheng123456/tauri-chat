@@ -72,7 +72,7 @@ function App() {
   }
 
   return (
-    <div className="h-full w-full flex overflow-hidden bg-chat-bg">
+    <div className="app-layout">
       <UserList
         users={users}
         myUserId={myUserId}
