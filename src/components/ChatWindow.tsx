@@ -1,5 +1,5 @@
 import { FileUp, Folder, Image as ImageIcon, Sparkles } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChatMessage, UserInfo } from "../types";
 import { MessageBubble } from "./MessageBubble";
 
@@ -30,13 +30,16 @@ export function ChatWindow({
   const imageInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const filteredMessages = messages.filter((m) => {
-    if (selectedChat === "all") return m.to_id === "all";
-    return (
-      (m.from_id === myUserId && m.to_id === selectedChat) ||
-      (m.from_id === selectedChat && m.to_id === myUserId)
-    );
-  });
+  const filteredMessages = useMemo(() =>
+    messages.filter((m) => {
+      if (selectedChat === "all") return m.to_id === "all";
+      return (
+        (m.from_id === myUserId && m.to_id === selectedChat) ||
+        (m.from_id === selectedChat && m.to_id === myUserId)
+      );
+    }),
+    [messages, selectedChat, myUserId]
+  );
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

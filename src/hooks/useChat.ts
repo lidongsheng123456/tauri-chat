@@ -1,90 +1,135 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ChatMessage, UserInfo, WsEvent } from "../types";
+import type { ChatMessage, UserInfo, WsEvent, WsSendEvent } from "../types";
 
 interface UseChatOptions {
   serverUrl: string;
   nickname: string;
 }
 
+const MAX_RECONNECT_DELAY = 30_000;
+const BASE_RECONNECT_DELAY = 2_000;
+
 export function useChat({ serverUrl, nickname }: UseChatOptions) {
   const [connected, setConnected] = useState(false);
   const [myUserId, setMyUserId] = useState("");
   const [users, setUsers] = useState<UserInfo[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+
   const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimer = useRef<number | null>(null);
+  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectAttempts = useRef(0);
+  const isConnecting = useRef(false);
+
+  // Use refs to avoid stale closures in WebSocket callbacks
+  const myUserIdRef = useRef(myUserId);
+  myUserIdRef.current = myUserId;
+  const nicknameRef = useRef(nickname);
+  nicknameRef.current = nickname;
+  const serverUrlRef = useRef(serverUrl);
+  serverUrlRef.current = serverUrl;
+
+  const clearReconnectTimer = useCallback(() => {
+    if (reconnectTimer.current) {
+      clearTimeout(reconnectTimer.current);
+      reconnectTimer.current = null;
+    }
+  }, []);
 
   const connect = useCallback(() => {
+    if (!serverUrl || !nickname) return;
+    if (isConnecting.current) return;
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-    const ws = new WebSocket(`ws://${serverUrl}/ws`);
-    wsRef.current = ws;
+    isConnecting.current = true;
+    clearReconnectTimer();
 
-    ws.onopen = () => {
-      setConnected(true);
-      const joinEvent: WsEvent = {
-        event: "join",
-        data: { nickname },
+    try {
+      const ws = new WebSocket(`ws://${serverUrl}/ws`);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        isConnecting.current = false;
+        reconnectAttempts.current = 0;
+        setConnected(true);
+        const joinEvent: WsSendEvent = {
+          event: "join",
+          data: { nickname: nicknameRef.current },
+        };
+        ws.send(JSON.stringify(joinEvent));
       };
-      ws.send(JSON.stringify(joinEvent));
-    };
 
-    ws.onmessage = (e) => {
-      try {
-        const event: WsEvent = JSON.parse(e.data);
-        switch (event.event) {
-          case "welcome":
-            setMyUserId(event.data.user_id);
-            break;
-          case "users":
-            setUsers(event.data);
-            break;
-          case "message":
-            setMessages((prev) => {
-              if (prev.some((m) => m.id === event.data.id)) return prev;
-              return [...prev, event.data];
-            });
-            break;
-          case "history":
-            setMessages(event.data || []);
-            break;
+      ws.onmessage = (e) => {
+        try {
+          const event = JSON.parse(e.data) as WsEvent;
+          switch (event.event) {
+            case "welcome":
+              setMyUserId(event.data.user_id);
+              break;
+            case "users":
+              setUsers(event.data);
+              break;
+            case "message":
+              setMessages((prev) => {
+                if (prev.some((m) => m.id === event.data.id)) return prev;
+                return [...prev, event.data];
+              });
+              break;
+            case "history":
+              setMessages(event.data ?? []);
+              break;
+          }
+        } catch (err) {
+          console.error("Failed to parse WS message:", err);
         }
-      } catch (err) {
-        console.error("Failed to parse WS message:", err);
-      }
-    };
+      };
 
-    ws.onclose = () => {
-      setConnected(false);
-      reconnectTimer.current = window.setTimeout(() => {
-        connect();
-      }, 3000);
-    };
+      ws.onclose = () => {
+        isConnecting.current = false;
+        setConnected(false);
+        // Exponential backoff reconnect
+        const delay = Math.min(
+          BASE_RECONNECT_DELAY * Math.pow(1.5, reconnectAttempts.current),
+          MAX_RECONNECT_DELAY
+        );
+        reconnectAttempts.current += 1;
+        reconnectTimer.current = setTimeout(() => {
+          connect();
+        }, delay);
+      };
 
-    ws.onerror = () => {
-      ws.close();
-    };
-  }, [serverUrl, nickname]);
+      ws.onerror = () => {
+        isConnecting.current = false;
+        ws.close();
+      };
+    } catch {
+      isConnecting.current = false;
+    }
+  }, [serverUrl, nickname, clearReconnectTimer]);
 
   useEffect(() => {
-    if (nickname) {
+    if (serverUrl && nickname) {
       connect();
     }
     return () => {
-      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-      wsRef.current?.close();
+      clearReconnectTimer();
+      if (wsRef.current) {
+        wsRef.current.onclose = null; // Prevent reconnect on intentional close
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+      isConnecting.current = false;
     };
-  }, [connect, nickname]);
+  }, [connect, serverUrl, nickname, clearReconnectTimer]);
 
   const sendMessage = useCallback(
-    (toId: string, content: string, msgType: string = "text", fileName?: string, fileSize?: number) => {
+    (toId: string, content: string, msgType: "text" | "image" | "video" | "file" = "text", fileName?: string, fileSize?: number) => {
       if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
-      const msg: WsEvent = {
+      const msg: WsSendEvent = {
         event: "message",
         data: {
           id: "",
-          from_id: myUserId,
-          from_name: nickname,
+          from_id: myUserIdRef.current,
+          from_name: nicknameRef.current,
           to_id: toId,
           content,
           msg_type: msgType,
@@ -95,12 +140,12 @@ export function useChat({ serverUrl, nickname }: UseChatOptions) {
       };
       wsRef.current.send(JSON.stringify(msg));
     },
-    [myUserId, nickname]
+    [] // No deps needed — uses refs to avoid stale closures
   );
 
   const uploadFile = useCallback(
     async (file: File, toId: string): Promise<string | null> => {
-      const msgType = file.type.startsWith("image/")
+      const msgType: "image" | "video" | "file" = file.type.startsWith("image/")
         ? "image"
         : file.type.startsWith("video/")
           ? "video"
@@ -108,18 +153,22 @@ export function useChat({ serverUrl, nickname }: UseChatOptions) {
 
       try {
         const arrayBuffer = await file.arrayBuffer();
-        const response = await fetch(`http://${serverUrl}/upload`, {
+        const response = await fetch(`http://${serverUrlRef.current}/upload`, {
           method: "POST",
           headers: {
             "Content-Type": "application/octet-stream",
             "x-file-name": encodeURIComponent(file.name),
-            "x-from-id": myUserId,
-            "x-from-name": nickname,
+            "x-from-id": myUserIdRef.current,
+            "x-from-name": nicknameRef.current,
             "x-to-id": toId,
             "x-msg-type": msgType,
           },
           body: arrayBuffer,
         });
+        if (!response.ok) {
+          console.error("Upload HTTP error:", response.status);
+          return null;
+        }
         const result = await response.json();
         return result.ok ? result.url : null;
       } catch (err) {
@@ -127,7 +176,7 @@ export function useChat({ serverUrl, nickname }: UseChatOptions) {
         return null;
       }
     },
-    [serverUrl, myUserId, nickname]
+    [] // No deps needed — uses refs to avoid stale closures
   );
 
   return {

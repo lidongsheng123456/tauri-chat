@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "LAN Chat",
+  "productName": "lanchat",
   "version": "0.1.0",
   "identifier": "com.lanchat.app",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "LAN Chat - 内网聊天",
+        "title": "lanchat - 内网聊天",
         "width": 1100,
         "height": 750,
         "minWidth": 800,
@@ -34,7 +34,7 @@
       "icons/chat(128×128).png",
       "icons/chat(128×128).png",
       "icons/chat(48×48).icns",
-      "icons/chat(48×48).ico"
+      "icons/icon.ico"
     ]
   }
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChatWindow } from "./components/ChatWindow";
 import { LoginScreen } from "./components/LoginScreen";
 import { UserList } from "./components/UserList";
@@ -26,7 +26,7 @@ function App() {
   const [serverIp, setServerIp] = useState("");
   const [selectedChat, setSelectedChat] = useState("all");
 
-  const serverUrl = `${serverIp}:9120`;
+  const serverUrl = useMemo(() => `${serverIp}:9120`, [serverIp]);
 
   const { connected, myUserId, users, messages, sendMessage, uploadFile } = useChat({
     serverUrl: loggedIn ? serverUrl : "",

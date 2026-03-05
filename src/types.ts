@@ -16,7 +16,14 @@ export interface UserInfo {
   ip: string;
 }
 
-export interface WsEvent {
-  event: string;
-  data: any;
-}
+export type WsEvent =
+  | { event: "welcome"; data: { user_id: string; nickname: string; ip: string } }
+  | { event: "users"; data: UserInfo[] }
+  | { event: "message"; data: ChatMessage }
+  | { event: "history"; data: ChatMessage[] }
+  | { event: "join"; data: { nickname: string } }
+  | { event: "error"; data: { message: string } };
+
+export type WsSendEvent =
+  | { event: "join"; data: { nickname: string } }
+  | { event: "message"; data: ChatMessage };
