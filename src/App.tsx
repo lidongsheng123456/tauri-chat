@@ -3,10 +3,16 @@ import { ChatWindow } from "./components/ChatWindow";
 import { LoginScreen } from "./components/LoginScreen";
 import { UserList } from "./components/UserList";
 import { useChat } from "./hooks/useChat";
+import { useLocalStorage } from "./hooks/useLocalStorage";
 
 interface NetworkInterface {
   name: string;
   ip: string;
+}
+
+interface SessionData {
+  nickname: string;
+  serverIp: string;
 }
 
 async function tauriInvoke<T>(cmd: string): Promise<T | null> {
@@ -21,9 +27,10 @@ async function tauriInvoke<T>(cmd: string): Promise<T | null> {
 function App() {
   const [networkInterfaces, setNetworkInterfaces] = useState<NetworkInterface[]>([]);
   const [hostname, setHostname] = useState("");
-  const [loggedIn, setLoggedIn] = useState(false);
-  const [nickname, setNickname] = useState("");
-  const [serverIp, setServerIp] = useState("");
+  const [session, setSession, removeSession] = useLocalStorage<SessionData | null>("lanchat_session", null);
+  const [loggedIn, setLoggedIn] = useState(() => session !== null);
+  const [nickname, setNickname] = useState(() => session?.nickname ?? "");
+  const [serverIp, setServerIp] = useState(() => session?.serverIp ?? "");
   const [selectedChat, setSelectedChat] = useState("all");
 
   const serverUrl = useMemo(() => `${serverIp}:9120`, [serverIp]);
@@ -51,7 +58,15 @@ function App() {
     setNickname(nick);
     setServerIp(ip);
     setLoggedIn(true);
-  }, []);
+    setSession({ nickname: nick, serverIp: ip });
+  }, [setSession]);
+
+  const handleLogout = useCallback(() => {
+    setLoggedIn(false);
+    setNickname("");
+    setServerIp("");
+    removeSession();
+  }, [removeSession]);
 
   const handleSendMessage = useCallback(
     (content: string) => {
@@ -80,6 +95,7 @@ function App() {
         onSelectChat={setSelectedChat}
         connected={connected}
         serverIp={serverIp}
+        onLogout={handleLogout}
       />
       <ChatWindow
         messages={messages}

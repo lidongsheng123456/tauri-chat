@@ -25,5 +25,5 @@ export type WsEvent =
   | { event: "error"; data: { message: string } };
 
 export type WsSendEvent =
-  | { event: "join"; data: { nickname: string } }
+  | { event: "join"; data: { nickname: string; client_id: string } }
   | { event: "message"; data: ChatMessage };

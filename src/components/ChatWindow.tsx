@@ -1,7 +1,13 @@
-import { FileUp, Folder, Image as ImageIcon, Sparkles } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { CheckCircle2, FileUp, Folder, Image as ImageIcon, Sparkles, XCircle } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChatMessage, UserInfo } from "../types";
 import { MessageBubble } from "./MessageBubble";
+
+interface Toast {
+  id: number;
+  type: "success" | "error";
+  message: string;
+}
 
 interface ChatWindowProps {
   messages: ChatMessage[];
@@ -25,10 +31,21 @@ export function ChatWindow({
   const [input, setInput] = useState("");
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [toasts, setToasts] = useState<Toast[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const dragCounter = useRef(0);
+  const toastId = useRef(0);
+
+  const showToast = useCallback((type: "success" | "error", message: string) => {
+    const id = ++toastId.current;
+    setToasts((prev) => [...prev, { id, type, message }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3000);
+  }, []);
 
   const filteredMessages = useMemo(() =>
     messages.filter((m) => {
@@ -70,32 +87,77 @@ export function ChatWindow({
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (files) {
+    if (files && files.length > 0) {
       setIsUploading(true);
+      let successCount = 0;
       for (const file of Array.from(files)) {
-        await onUploadFile(file);
+        try {
+          await onUploadFile(file);
+          successCount++;
+        } catch {
+          showToast("error", `"${file.name}" 上传失败`);
+        }
       }
       setIsUploading(false);
+      if (successCount > 0) {
+        showToast("success", `成功上传 ${successCount} 个文件`);
+      }
     }
     e.target.value = "";
   };
 
-  const handleDrop = async (e: React.DragEvent) => {
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current += 1;
+    if (e.dataTransfer.items.length > 0) {
+      setIsDragOver(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current -= 1;
+    if (dragCounter.current === 0) {
+      setIsDragOver(false);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current = 0;
     setIsDragOver(false);
     const files = e.dataTransfer.files;
     if (files.length > 0) {
       setIsUploading(true);
+      let successCount = 0;
       for (const file of Array.from(files)) {
-        await onUploadFile(file);
+        try {
+          await onUploadFile(file);
+          successCount++;
+        } catch {
+          showToast("error", `"${file.name}" 上传失败`);
+        }
       }
       setIsUploading(false);
+      if (successCount > 0) {
+        showToast("success", `成功上传 ${successCount} 个文件`);
+      }
     }
-  };
+  }, [onUploadFile, showToast]);
+
+  const otherUserCount = users.filter((u) => u.user_id !== myUserId).length;
 
   const chatTitle =
     selectedChat === "all"
-      ? `所有人频道 (${users.length})`
+      ? `所有人频道 (${otherUserCount})`
       : users.find((u) => u.user_id === selectedChat)?.nickname || "聊天";
 
   const chatSubtitle =
@@ -105,9 +167,10 @@ export function ChatWindow({
 
   return (
     <div
-      className="chat-window"
-      onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
-      onDragLeave={() => setIsDragOver(false)}
+      className={`chat-window ${isDragOver ? "chat-window--drag-active" : ""}`}
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
       {/* Chat Header */}
@@ -210,6 +273,18 @@ export function ChatWindow({
         <input ref={imageInputRef} type="file" accept="image/*,video/*" multiple onChange={handleFileChange} className="hidden" />
         <input ref={fileInputRef} type="file" multiple onChange={handleFileChange} className="hidden" />
       </div>
+
+      {/* Toast notifications */}
+      {toasts.length > 0 && (
+        <div className="chat-toast-container">
+          {toasts.map((toast) => (
+            <div key={toast.id} className={`chat-toast chat-toast--${toast.type} animate-slide-up`}>
+              {toast.type === "success" ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
+              <span>{toast.message}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

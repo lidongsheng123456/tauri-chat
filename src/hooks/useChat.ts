@@ -8,12 +8,42 @@ interface UseChatOptions {
 
 const MAX_RECONNECT_DELAY = 30_000;
 const BASE_RECONNECT_DELAY = 2_000;
+const STORAGE_KEY_PREFIX = "lanchat_messages_";
+const MAX_STORED_MESSAGES = 2000;
+
+function getStableClientId(): string {
+  const key = "lanchat_client_id";
+  let id = localStorage.getItem(key);
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem(key, id);
+  }
+  return id;
+}
+
+function loadMessages(serverUrl: string): ChatMessage[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_PREFIX + serverUrl);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveMessages(serverUrl: string, messages: ChatMessage[]) {
+  try {
+    const trimmed = messages.slice(-MAX_STORED_MESSAGES);
+    localStorage.setItem(STORAGE_KEY_PREFIX + serverUrl, JSON.stringify(trimmed));
+  } catch (e) {
+    console.error("Failed to save messages:", e);
+  }
+}
 
 export function useChat({ serverUrl, nickname }: UseChatOptions) {
   const [connected, setConnected] = useState(false);
   const [myUserId, setMyUserId] = useState("");
   const [users, setUsers] = useState<UserInfo[]>([]);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => loadMessages(serverUrl));
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -53,7 +83,7 @@ export function useChat({ serverUrl, nickname }: UseChatOptions) {
         setConnected(true);
         const joinEvent: WsSendEvent = {
           event: "join",
-          data: { nickname: nicknameRef.current },
+          data: { nickname: nicknameRef.current, client_id: getStableClientId() },
         };
         ws.send(JSON.stringify(joinEvent));
       };
@@ -74,9 +104,18 @@ export function useChat({ serverUrl, nickname }: UseChatOptions) {
                 return [...prev, event.data];
               });
               break;
-            case "history":
-              setMessages(event.data ?? []);
+            case "history": {
+              const serverHistory: ChatMessage[] = event.data ?? [];
+              // Merge: server history + local-only messages
+              setMessages((local) => {
+                const serverIds = new Set(serverHistory.map((m) => m.id));
+                const localOnly = local.filter((m) => m.id && !serverIds.has(m.id));
+                const merged = [...serverHistory, ...localOnly];
+                merged.sort((a, b) => a.timestamp - b.timestamp);
+                return merged;
+              });
               break;
+            }
           }
         } catch (err) {
           console.error("Failed to parse WS message:", err);
@@ -120,6 +159,13 @@ export function useChat({ serverUrl, nickname }: UseChatOptions) {
       isConnecting.current = false;
     };
   }, [connect, serverUrl, nickname, clearReconnectTimer]);
+
+  // Persist messages to localStorage whenever they change
+  useEffect(() => {
+    if (serverUrl && messages.length > 0) {
+      saveMessages(serverUrl, messages);
+    }
+  }, [messages, serverUrl]);
 
   const sendMessage = useCallback(
     (toId: string, content: string, msgType: "text" | "image" | "video" | "file" = "text", fileName?: string, fileSize?: number) => {

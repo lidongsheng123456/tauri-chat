@@ -1,0 +1,62 @@
+@echo off
+
+setlocal
+set "DB_USER=your_username"
+set "DB_PASSWORD=your_password"
+set "DB_NAME=book"
+set "BACKUP_DIR=C:\backups\book_db"
+set "UPLOAD_DIR=C:\inetpub\wwwroot\uploads\book_db_backups"
+
+REM 备份数据库
+:backup_db
+set "backup_file=%BACKUP_DIR%\book_db_%date:~0,10%_%time::=-%.sql"
+if not exist %BACKUP_DIR% mkdir %BACKUP_DIR%
+mysqldump -u%DB_USER% -p%DB_PASSWORD% %DB_NAME% > %backup_file%
+echo 数据库备份成功: %backup_file%
+goto :eof
+
+REM 还原数据库
+:restore_db
+set /p backup_file_path="请输入备份文件路径: "
+if exist %backup_file_path% (
+    mysql -u%DB_USER% -p%DB_PASSWORD% %DB_NAME% < %backup_file_path%
+    echo 数据库还原成功
+) else (
+    echo 备份文件不存在
+)
+goto :eof
+
+REM 上传备份文件
+:upload_backup
+set /p backup_file_path="请输入要上传的备份文件路径: "
+if exist %backup_file_path% (
+    if not exist %UPLOAD_DIR% mkdir %UPLOAD_DIR%
+    xcopy %backup_file_path% %UPLOAD_DIR%
+    echo 备份文件上传成功到: %UPLOAD_DIR%
+) else (
+    echo 备份文件不存在
+)
+goto :eof
+
+REM 主菜单
+:main_menu
+echo 请选择操作:
+echo 1. 备份数据库
+echo 2. 还原数据库
+echo 3. 上传备份文件
+echo 4. 退出
+set /p choice="选择(1 - 4): "
+if "%choice%"=="1" (
+    call :backup_db
+) else if "%choice%"=="2" (
+    call :restore_db
+) else if "%choice%"=="3" (
+    call :upload_backup
+) else if "%choice%"=="4" (
+    exit /b
+) else (
+    echo 无效选择，请重新输入
+)
+goto :main_menu
+
+pause

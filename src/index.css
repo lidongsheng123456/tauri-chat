@@ -589,6 +589,28 @@ a { text-decoration: none; color: inherit; }
   color: var(--text-placeholder);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebar-logout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--text-placeholder);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.sidebar-logout-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--danger);
 }
 
 /* ---- User List ---- */
@@ -766,6 +788,11 @@ a { text-decoration: none; color: inherit; }
   background: #fcfcfc;
   position: relative;
   min-width: 0;
+  transition: background var(--duration-normal) var(--ease-out);
+}
+
+.chat-window--drag-active {
+  background: rgba(7, 193, 96, 0.03);
 }
 
 /* ---- Chat Header ---- */
@@ -812,8 +839,8 @@ a { text-decoration: none; color: inherit; }
 .chat-drag-overlay {
   position: absolute;
   inset: 16px;
-  background: rgba(255, 255, 255, 0.6);
-  border: 2px dashed var(--accent);
+  background: rgba(7, 193, 96, 0.06);
+  border: 2.5px dashed var(--accent);
   border-radius: var(--radius-xl);
   display: flex;
   flex-direction: column;
@@ -822,7 +849,16 @@ a { text-decoration: none; color: inherit; }
   z-index: 20;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 8px 32px rgba(7, 193, 96, 0.15);
+  box-shadow:
+    0 8px 32px rgba(7, 193, 96, 0.15),
+    inset 0 0 60px rgba(7, 193, 96, 0.04);
+  pointer-events: none;
+  animation: drag-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes drag-pulse {
+  0%, 100% { border-color: var(--accent); box-shadow: 0 8px 32px rgba(7, 193, 96, 0.15), inset 0 0 60px rgba(7, 193, 96, 0.04); }
+  50% { border-color: rgba(7, 193, 96, 0.5); box-shadow: 0 8px 40px rgba(7, 193, 96, 0.25), inset 0 0 80px rgba(7, 193, 96, 0.08); }
 }
 
 .chat-drag-overlay__icon {
@@ -1026,6 +1062,48 @@ a { text-decoration: none; color: inherit; }
 
 .chat-send-btn:disabled:hover { background: var(--accent); }
 
+/* ---- Toast Notifications ---- */
+.chat-toast-container {
+  position: absolute;
+  bottom: 100px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 30;
+  pointer-events: none;
+}
+
+.chat-toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 500;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  pointer-events: auto;
+  animation: toast-in 0.3s var(--ease-out);
+}
+
+.chat-toast--success {
+  background: rgba(7, 193, 96, 0.95);
+  color: white;
+}
+
+.chat-toast--error {
+  background: rgba(220, 38, 38, 0.95);
+  color: white;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 /* ============================================
    MESSAGE BUBBLE
    ============================================ */
@@ -1173,6 +1251,142 @@ a { text-decoration: none; color: inherit; }
 
 .message-file__size--mine { color: rgba(255, 255, 255, 0.7); }
 .message-file__size--other { color: var(--text-secondary); }
+
+.message-file__download {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  border: none;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.message-file__download--mine {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.message-file__download--mine:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.message-file__download--other {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--text-secondary);
+}
+
+.message-file__download--other:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--accent);
+}
+
+/* ---- Clickable Image ---- */
+.message-media__img--clickable {
+  cursor: zoom-in;
+  transition: opacity var(--duration-fast) var(--ease-out), box-shadow var(--duration-normal);
+}
+
+.message-media__img--clickable:hover {
+  opacity: 0.92;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+/* ---- Image Preview Lightbox ---- */
+.image-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  animation: preview-fade-in 0.2s ease-out;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+@keyframes preview-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.image-preview-toolbar {
+  position: absolute;
+  top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: var(--radius-xl);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 1001;
+}
+
+.image-preview-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+
+.image-preview-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+}
+
+.image-preview-btn--close:hover {
+  background: rgba(220, 38, 38, 0.6);
+  color: white;
+}
+
+.image-preview-scale {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  min-width: 40px;
+  text-align: center;
+  font-family: "SF Mono", "Fira Code", monospace;
+  user-select: none;
+}
+
+.image-preview-divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.15);
+  margin: 0 4px;
+}
+
+.image-preview-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.image-preview-img {
+  max-width: 90vw;
+  max-height: 85vh;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  transition: transform 0.15s ease-out;
+  user-select: none;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+}
 
 /* ---- Position helper ---- */
 .pos-relative { position: relative; }

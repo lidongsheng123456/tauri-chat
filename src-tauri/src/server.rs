@@ -102,16 +102,22 @@ impl ChatServer {
             .and(messages_filter.clone())
             .and_then(handle_upload);
 
-        // File download endpoint
+        // File serving endpoint (inline display for images/videos)
         let download_route = warp::path("files")
             .and(warp::fs::dir("./chat_files"));
+
+        // File download endpoint (forces browser download with Content-Disposition)
+        let force_download_route = warp::path("download")
+            .and(warp::path::tail())
+            .and(warp::get())
+            .and_then(handle_force_download);
 
         let cors = warp::cors()
             .allow_any_origin()
             .allow_headers(vec!["content-type", "x-file-name", "x-from-id", "x-from-name", "x-to-id", "x-msg-type"])
             .allow_methods(vec!["GET", "POST", "OPTIONS"]);
 
-        let routes = ws_route.or(upload_route).or(download_route).with(cors);
+        let routes = ws_route.or(upload_route).or(force_download_route).or(download_route).with(cors);
 
         log::info!("Chat server starting on port {}", port);
 
@@ -230,6 +236,33 @@ async fn handle_upload(
     Ok(warp::reply::json(&serde_json::json!({"ok": true, "url": msg.content})))
 }
 
+async fn handle_force_download(tail: warp::path::Tail) -> Result<impl warp::Reply, warp::Rejection> {
+    let file_name = tail.as_str();
+    // Prevent path traversal
+    if file_name.contains("..") || file_name.contains('/') || file_name.contains('\\') {
+        return Err(warp::reject::not_found());
+    }
+    let file_path = format!("./chat_files/{}", file_name);
+    let data = tokio::fs::read(&file_path).await.map_err(|_| warp::reject::not_found())?;
+
+    // Extract the original filename (strip UUID prefix: "uuid_originalname")
+    let display_name = file_name
+        .find('_')
+        .map(|i| &file_name[i + 1..])
+        .unwrap_or(file_name);
+
+    let encoded_name = urlencoding::encode(display_name);
+
+    Ok(warp::http::Response::builder()
+        .header("Content-Type", "application/octet-stream")
+        .header(
+            "Content-Disposition",
+            format!("attachment; filename=\"{}\"; filename*=UTF-8''{}", display_name, encoded_name),
+        )
+        .body(data)
+        .unwrap())
+}
+
 fn sanitize_filename(name: &str) -> String {
     name.chars()
         .take(100) // Limit filename length
@@ -246,7 +279,6 @@ async fn handle_connection(
     let (mut ws_tx, mut ws_rx) = ws.split();
     let (tx, mut rx) = mpsc::unbounded_channel::<Message>();
 
-    let user_id = Uuid::new_v4().to_string();
     let ip = addr.map(|a| a.ip().to_string()).unwrap_or_default();
 
     // Spawn sender task with graceful shutdown
@@ -262,7 +294,7 @@ async fn handle_connection(
     });
 
     let mut nickname = String::new();
-    let connected_user_id = user_id.clone();
+    let mut connected_user_id = String::new();
 
     while let Some(Ok(msg)) = ws_rx.next().await {
         // Skip if sender task has closed
@@ -288,6 +320,16 @@ async fn handle_connection(
                         .and_then(|v| v.as_str())
                         .unwrap_or("Anonymous")
                         .to_string();
+
+                    // Use client-provided stable ID if present, otherwise generate new
+                    connected_user_id = event.data.get("client_id")
+                        .and_then(|v| v.as_str())
+                        .filter(|s| !s.is_empty() && s.len() <= 64)
+                        .map(|s| s.to_string())
+                        .unwrap_or_else(|| Uuid::new_v4().to_string());
+
+                    // Remove old session if same user_id is already connected
+                    clients.write().await.remove(&connected_user_id);
 
                     // Sanitize nickname length
                     if nickname.len() > MAX_NICKNAME_LEN {

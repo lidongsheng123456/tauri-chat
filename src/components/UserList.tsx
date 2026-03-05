@@ -1,4 +1,4 @@
-import { Search, Users } from "lucide-react";
+import { LogOut, Search, Users } from "lucide-react";
 import { useState } from "react";
 import type { UserInfo } from "../types";
 
@@ -9,6 +9,7 @@ interface UserListProps {
   onSelectChat: (userId: string) => void;
   connected: boolean;
   serverIp: string;
+  onLogout?: () => void;
 }
 
 const AVATAR_COLOR_COUNT = 7;
@@ -19,7 +20,7 @@ function getAvatarColorClass(name: string): string {
   return `avatar-color-${Math.abs(hash) % AVATAR_COLOR_COUNT}`;
 }
 
-export function UserList({ users, myUserId, selectedChat, onSelectChat, connected, serverIp }: UserListProps) {
+export function UserList({ users, myUserId, selectedChat, onSelectChat, connected, serverIp, onLogout }: UserListProps) {
   const otherUsers = users.filter((u) => u.user_id !== myUserId);
   const [searchQuery, setSearchQuery] = useState("");
   const filteredUsers = searchQuery
@@ -52,7 +53,12 @@ export function UserList({ users, myUserId, selectedChat, onSelectChat, connecte
 
       {/* Network Info */}
       <div className="sidebar-server-info">
-        Server: {serverIp}:9120
+        <span>Server: {serverIp}:9120</span>
+        {onLogout && (
+          <button onClick={onLogout} className="sidebar-logout-btn" title="退出登录">
+            <LogOut size={14} />
+          </button>
+        )}
       </div>
 
       {/* User List */}
@@ -70,7 +76,7 @@ export function UserList({ users, myUserId, selectedChat, onSelectChat, connecte
           <div className="sidebar-item__info">
             <div className="sidebar-item__row">
               <span className="sidebar-item__name">所有人频道</span>
-              <span className="sidebar-item__meta">{users.length} 在线</span>
+              <span className="sidebar-item__meta">{otherUsers.length} 在线</span>
             </div>
             <div className="sidebar-item__desc">公共聊天室...</div>
           </div>

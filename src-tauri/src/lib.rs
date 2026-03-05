@@ -2,6 +2,7 @@ mod server;
 
 use server::ChatServer;
 use serde::Serialize;
+use std::path::PathBuf;
 
 #[derive(Serialize)]
 struct NetworkInterface {
@@ -43,6 +44,57 @@ fn get_server_port() -> u16 {
     9120
 }
 
+#[tauri::command]
+async fn download_chat_file(file_path: String, file_name: String) -> Result<String, String> {
+    // file_path is like "/files/uuid_filename.ext"
+    let stored_name = file_path
+        .strip_prefix("/files/")
+        .unwrap_or(&file_path);
+
+    // Prevent path traversal
+    if stored_name.contains("..") || stored_name.contains('/') || stored_name.contains('\\') {
+        return Err("Invalid file path".to_string());
+    }
+
+    let src = PathBuf::from("./chat_files").join(stored_name);
+    if !src.exists() {
+        return Err("File not found".to_string());
+    }
+
+    // Get user's Downloads directory
+    let downloads_dir = dirs::download_dir()
+        .unwrap_or_else(|| dirs::home_dir().unwrap_or_else(|| PathBuf::from(".")));
+
+    let mut dest = downloads_dir.join(&file_name);
+
+    // If file already exists, append a number
+    if dest.exists() {
+        let stem = std::path::Path::new(&file_name)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("file")
+            .to_string();
+        let ext = std::path::Path::new(&file_name)
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|e| format!(".{}", e))
+            .unwrap_or_default();
+        let mut counter = 1;
+        loop {
+            dest = downloads_dir.join(format!("{}({}){}", stem, counter, ext));
+            if !dest.exists() { break; }
+            counter += 1;
+        }
+    }
+
+    // Copy file to Downloads
+    tokio::fs::copy(&src, &dest)
+        .await
+        .map_err(|e| format!("Failed to save file: {}", e))?;
+
+    Ok(dest.to_string_lossy().to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let server = ChatServer::new(9120);
@@ -75,6 +127,7 @@ pub fn run() {
             get_all_ips,
             get_hostname,
             get_server_port,
+            download_chat_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
