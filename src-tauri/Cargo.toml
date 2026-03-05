@@ -1,11 +1,11 @@
 [package]
 name = "app"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "LAN Chat - 内网聊天应用"
+authors = ["lidongsheng"]
 license = ""
-repository = ""
-edition = "2021"
+repository = "https://gitee.com/li-dongshenger/tauri-chat"
+edition = "2026"
 rust-version = "1.77.2"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

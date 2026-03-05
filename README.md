@@ -1,73 +1,181 @@
-# React + TypeScript + Vite
+# lanchat — 局域网安全聊天工具
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+> 告别封号风险，畅享自由沟通。零服务器、零审查、零成本的企业级内网即时通讯方案。
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 为什么需要 lanchat？
 
-## React Compiler
+在日常工作和生活中，我们高度依赖微信、QQ、钉钉等主流聊天工具。然而，这些平台存在一系列无法回避的痛点：
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+| 痛点 | 具体表现 |
+|------|---------|
+| **封号风险** | 敏感词触发、频繁群发、异地登录等均可导致账号被封禁，工作沟通瞬间中断 |
+| **隐私泄露** | 所有消息经过平台服务器，聊天记录可被审查、存档、甚至用于数据分析 |
+| **网络依赖** | 必须连接外网才能使用，内网隔离环境（工厂、实验室、涉密单位）无法正常通讯 |
+| **功能限制** | 文件传输大小受限（微信 200MB）、传输速度慢、压缩画质 |
+| **商业绑定** | 企业微信等需要付费、实名认证、企业资质审核 |
 
-## Expanding the ESLint configuration
+**lanchat 从根本上解决了这些问题。**
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+---
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## 核心优势
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### 1. 零封号风险 — 没有平台，就没有封号
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+lanchat 运行在局域网内，不经过任何第三方服务器。没有账号体系、没有实名认证、没有敏感词过滤。
+
+- 不存在"违规"的概念 — 你的网络，你做主
+- 不会因为发送特定内容被警告或封禁
+- 不会因为"异常行为"被限制功能
+- 员工离职不会丢失沟通记录
+
+### 2. 绝对隐私 — 数据从不离开你的网络
+
+```
+微信模式：  你 → 腾讯服务器 → 对方    （第三方可见）
+lanchat：   你 → 局域网直连 → 对方    （仅你和对方可见）
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+- **端到端局域网传输**：消息和文件仅在本地网络流转，物理隔绝外网
+- **无云端存储**：不存在"服务器被拖库"的风险
+- **无数据采集**：不收集任何用户行为数据
+- **即开即用**：无需注册、无需手机号、无需任何个人信息
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### 3. 极速文件传输 — 局域网满速直传
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+| 对比项 | 微信 | lanchat |
+|-------|------|---------|
+| 文件大小限制 | 200MB | **100MB（可调至无上限）** |
+| 传输速度 | 受外网带宽限制（通常 1-10MB/s） | **局域网满速（100-1000MB/s）** |
+| 图片压缩 | 严重压缩画质 | **原图无损传输** |
+| 视频压缩 | 强制压缩 | **原始画质** |
+
+### 4. 零成本部署 — 开箱即用
+
+- **无需服务器**：任何一台电脑启动即为服务端，其他设备加入即可
+- **无需域名**：通过 IP 地址直接连接
+- **无需付费**：完全开源免费，永久使用
+- **无需运维**：无数据库、无后端服务、无 SSL 证书
+- **一键打包**：生成 `.msi` / `.exe` 安装包，分发给同事即可使用
+
+### 5. 内网隔离环境专属
+
+lanchat 特别适用于以下无法使用外网聊天工具的场景：
+
+- **涉密单位**：政府机关、军工企业等禁止外网通讯的环境
+- **生产车间**：工厂内网环境，工人之间需要实时沟通
+- **科研实验室**：数据隔离要求高，不允许信息外传
+- **校园内网**：学校局域网内师生交流
+- **展会/活动现场**：临时组网，快速建立沟通通道
+
+---
+
+## 功能特性
+
+- **即时消息** — 文本消息实时收发，支持公共频道和私聊
+- **文件共享** — 拖拽发送任意文件，局域网内极速传输
+- **图片/视频** — 原图原画质发送，支持在线预览
+- **自动发现** — 打开即可看到同一网络内的所有在线用户
+- **多端支持** — Windows / macOS / Linux 全平台覆盖
+- **现代界面** — 简约高级的 UI 设计，流畅的交互体验
+
+---
+
+## 技术架构
+
 ```
+┌─────────────────────────────────────────────┐
+│                lanchat 客户端                │
+│  ┌────────────┐       ┌──────────────────┐  │
+│  │  React UI  │◄─────►│  Tauri (Rust)    │  │
+│  │  TypeScript │       │  WebSocket 服务  │  │
+│  │  原生 CSS   │       │  HTTP 文件服务   │  │
+│  └────────────┘       └──────────────────┘  │
+└─────────────────┬───────────────────────────┘
+                  │ WebSocket + HTTP
+                  ▼
+          ┌──────────────┐
+          │   局域网 LAN  │  ← 数据仅在此范围流转
+          └──────────────┘
+```
+
+- **前端**：React 19 + TypeScript + 原生 CSS 设计系统
+- **后端**：Rust + Tauri 2 + Warp（高性能异步 WebSocket 服务）
+- **通信**：WebSocket 实时消息 + HTTP RESTful 文件传输
+- **安全**：消息长度限制、文件大小限制、身份防伪造、输入过滤
+
+---
+
+## 快速开始
+
+### 环境要求
+
+- Node.js ≥ 18
+- Rust ≥ 1.77
+- 系统：Windows 10+、macOS 10.15+、Linux
+
+### 开发运行
+
+```bash
+# 安装依赖
+npm install
+
+# 启动开发模式（前端 + Tauri）
+npm run tauri dev
+```
+
+### 打包分发
+
+```bash
+# 构建安装包
+npm run tauri build
+```
+
+构建产物位于 `src-tauri/target/release/bundle/`，包含：
+- Windows: `.msi` 安装包 / `.exe` 便携版
+- macOS: `.dmg` 安装包
+- Linux: `.deb` / `.AppImage`
+
+### 使用方式
+
+1. **创建房间**：启动应用 → 输入昵称 → 选择网卡 → 点击"开启聊天空间"
+2. **加入房间**：启动应用 → 输入昵称 → 切换"加入房间" → 输入主机 IP → 点击"加入聊天空间"
+3. **开始聊天**：在左侧选择联系人或公共频道，发送消息和文件
+
+---
+
+## 与主流工具对比
+
+| 特性 | 微信 | 钉钉 | 企业微信 | lanchat |
+|------|------|------|---------|---------|
+| 封号风险 | 高 | 中 | 中 | **无** |
+| 隐私保护 | 弱 | 弱 | 弱 | **强（纯本地）** |
+| 需要外网 | 是 | 是 | 是 | **否** |
+| 需要注册 | 是 | 是 | 是 | **否** |
+| 文件大小限制 | 200MB | 4GB | 200MB | **可自定义** |
+| 传输速度 | 慢 | 中 | 慢 | **极快（局域网）** |
+| 部署成本 | 免费 | 付费 | 付费 | **免费** |
+| 数据所有权 | 平台 | 平台 | 平台 | **用户** |
+| 开源 | 否 | 否 | 否 | **是** |
+
+---
+
+## 适用场景
+
+- 企业内部沟通，替代被封号风险困扰的微信工作群
+- 涉密环境下的安全通讯需求
+- 局域网内快速传输大文件（设计稿、视频素材、工程文件）
+- 临时活动现场的即时通讯组网
+- 对数据隐私有高要求的团队协作
+
+---
+
+## 开源协议
+
+MIT License — 自由使用、修改、分发。
+
+---
+
+> **lanchat** — 你的网络，你的消息，你做主。
