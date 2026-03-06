@@ -109,3 +109,41 @@ pub struct BrowseArgs {
 pub struct FetchRawArgs {
     pub url: String,
 }
+
+/// web_search 工具的参数
+#[derive(Deserialize)]
+pub struct SearchArgs {
+    pub query: String,
+}
+
+/// extract_webpage_images 工具的参数
+#[derive(Deserialize)]
+pub struct ExtractImagesArgs {
+    pub url: String,
+}
+
+/// get_current_datetime 工具的参数
+#[derive(Deserialize)]
+pub struct DatetimeArgs {
+    pub timezone: Option<String>,
+}
+
+/// encode_decode 工具的参数
+#[derive(Deserialize)]
+pub struct EncodeDecodeArgs {
+    pub action: String,
+    pub encoding: String,
+    pub text: String,
+}
+
+/// get_ip_geolocation 工具的参数
+#[derive(Deserialize)]
+pub struct IpGeoArgs {
+    pub ip: Option<String>,
+}
+
+/// text_stats 工具的参数
+#[derive(Deserialize)]
+pub struct TextStatsArgs {
+    pub text: String,
+}

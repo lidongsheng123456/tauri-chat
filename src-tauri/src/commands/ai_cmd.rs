@@ -20,7 +20,8 @@ fn read_api_key() -> Result<String, String> {
     }
     let entry = keyring::Entry::new("lanchat", "deepseek_api_key")
         .map_err(|e| format!("凭据管理器访问失败: {}", e))?;
-    entry.get_password()
+    entry
+        .get_password()
         .map_err(|_| "未配置 API Key，请设置环境变量 DEEPSEEK_API_KEY 后重新编译".to_string())
 }
 

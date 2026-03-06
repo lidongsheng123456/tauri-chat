@@ -4,6 +4,7 @@ import { ChatWindow } from "./components/ChatWindow";
 import { LoginScreen } from "./components/LoginScreen";
 import { TransferIndicator } from "./components/TransferIndicator";
 import { UserList } from "./components/UserList";
+import { getConfig, loadConfig } from "./config";
 import { AI_BOT_ID, useAiChat } from "./hooks/useAiChat";
 import { useChat } from "./hooks/useChat";
 import { useLocalStorage } from "./hooks/useLocalStorage";
@@ -41,7 +42,7 @@ function App() {
   const [serverIp, setServerIp] = useState(() => session?.serverIp ?? "");
   const [selectedChat, setSelectedChat] = useState("all");
 
-  const serverUrl = useMemo(() => `${serverIp}:9120`, [serverIp]);
+  const serverUrl = useMemo(() => `${serverIp}:${getConfig().chat_port}`, [serverIp]);
 
   const { connected, myUserId, users, messages, sendMessage, uploadFile } = useChat({
     serverUrl: loggedIn ? serverUrl : "",
@@ -52,6 +53,7 @@ function App() {
 
   useEffect(() => {
     async function init() {
+      await loadConfig();
       const interfaces = await tauriInvoke<NetworkInterface[]>("get_all_ips");
       if (interfaces && interfaces.length > 0) {
         setNetworkInterfaces(interfaces);

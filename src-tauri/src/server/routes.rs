@@ -23,9 +23,16 @@ pub async fn start_server(clients: Clients, messages: Arc<Mutex<Vec<ChatMessage>
         .and(clients_filter.clone())
         .and(messages_filter.clone())
         .and(warp::addr::remote())
-        .map(|ws: warp::ws::Ws, clients: Clients, messages: Arc<Mutex<Vec<ChatMessage>>>, addr: Option<SocketAddr>| {
-            ws.on_upgrade(move |socket| handlers::handle_connection(socket, clients, messages, addr))
-        });
+        .map(
+            |ws: warp::ws::Ws,
+             clients: Clients,
+             messages: Arc<Mutex<Vec<ChatMessage>>>,
+             addr: Option<SocketAddr>| {
+                ws.on_upgrade(move |socket| {
+                    handlers::handle_connection(socket, clients, messages, addr)
+                })
+            },
+        );
 
     let upload_clients = clients_filter.clone();
     let upload_route = warp::path("upload")
@@ -40,8 +47,7 @@ pub async fn start_server(clients: Clients, messages: Arc<Mutex<Vec<ChatMessage>
         .and(messages_filter.clone())
         .and_then(handlers::handle_upload);
 
-    let download_route = warp::path("files")
-        .and(warp::fs::dir("./chat_files"));
+    let download_route = warp::path("files").and(warp::fs::dir("./chat_files"));
 
     let force_download_route = warp::path("download")
         .and(warp::path::tail())
@@ -50,10 +56,21 @@ pub async fn start_server(clients: Clients, messages: Arc<Mutex<Vec<ChatMessage>
 
     let cors = warp::cors()
         .allow_any_origin()
-        .allow_headers(vec!["content-type", "x-file-name", "x-from-id", "x-from-name", "x-to-id", "x-msg-type"])
+        .allow_headers(vec![
+            "content-type",
+            "x-file-name",
+            "x-from-id",
+            "x-from-name",
+            "x-to-id",
+            "x-msg-type",
+        ])
         .allow_methods(vec!["GET", "POST", "OPTIONS"]);
 
-    let routes = ws_route.or(upload_route).or(force_download_route).or(download_route).with(cors);
+    let routes = ws_route
+        .or(upload_route)
+        .or(force_download_route)
+        .or(download_route)
+        .with(cors);
 
     log::info!("Chat server starting on port {}", port);
 
@@ -61,7 +78,11 @@ pub async fn start_server(clients: Clients, messages: Arc<Mutex<Vec<ChatMessage>
     let listener = match tokio::net::TcpListener::bind(addr).await {
         Ok(l) => l,
         Err(e) => {
-            log::error!("Failed to bind to port {}: {}. Port may be in use.", port, e);
+            log::error!(
+                "Failed to bind to port {}: {}. Port may be in use.",
+                port,
+                e
+            );
             tokio::time::sleep(std::time::Duration::from_secs(2)).await;
             match tokio::net::TcpListener::bind(addr).await {
                 Ok(l) => l,

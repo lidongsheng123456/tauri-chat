@@ -1,10 +1,12 @@
 use std::path::PathBuf;
 
 /// 下载聊天文件到本地下载目录，优先本地缓存，否则从远程拉取
-pub async fn download_file(file_path: &str, file_name: &str, server_url: &str) -> Result<String, String> {
-    let stored_name = file_path
-        .strip_prefix("/files/")
-        .unwrap_or(file_path);
+pub async fn download_file(
+    file_path: &str,
+    file_name: &str,
+    server_url: &str,
+) -> Result<String, String> {
+    let stored_name = file_path.strip_prefix("/files/").unwrap_or(file_path);
 
     if stored_name.contains("..") || stored_name.contains('\\') {
         return Err("Invalid file path".to_string());
@@ -34,7 +36,9 @@ pub async fn download_file(file_path: &str, file_name: &str, server_url: &str) -
         let mut counter = 1;
         loop {
             dest = downloads_dir.join(format!("{}({}){}", stem, counter, ext));
-            if !dest.exists() { break; }
+            if !dest.exists() {
+                break;
+            }
             counter += 1;
         }
     }
@@ -52,7 +56,8 @@ pub async fn download_file(file_path: &str, file_name: &str, server_url: &str) -
         .build()
         .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
     let url = format!("http://{}/files/{}", server_url, stored_name);
-    let response = client.get(&url)
+    let response = client
+        .get(&url)
         .send()
         .await
         .map_err(|e| format!("Download request failed: {}", e))?;
@@ -61,7 +66,8 @@ pub async fn download_file(file_path: &str, file_name: &str, server_url: &str) -
         return Err(format!("Server returned HTTP {}", response.status()));
     }
 
-    let data = response.bytes()
+    let data = response
+        .bytes()
         .await
         .map_err(|e| format!("Failed to read response: {}", e))?;
 

@@ -1,26 +1,21 @@
+use futures_util::{SinkExt, StreamExt};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::{Mutex, mpsc};
-use warp::ws::{Message, WebSocket};
-use futures_util::{StreamExt, SinkExt};
 use uuid::Uuid;
+use warp::ws::{Message, WebSocket};
 
+use crate::config;
 use crate::models::chat::*;
 use crate::utils::filename::sanitize_filename;
 
-/// 消息历史最大条数，超出则丢弃最旧
-const MAX_MESSAGE_HISTORY: usize = 5000;
-/// 昵称最大字符数
-const MAX_NICKNAME_LEN: usize = 32;
-/// 文本消息最大字符数
-const MAX_TEXT_MESSAGE_LEN: usize = 10_000;
-
 /// 将消息写入历史，超出上限时移除最旧记录
 async fn store_message(messages: &Arc<Mutex<Vec<ChatMessage>>>, msg: ChatMessage) {
+    let max_history = config::get().chat.max_message_history;
     let mut msgs = messages.lock().await;
-    if msgs.len() >= MAX_MESSAGE_HISTORY {
-        let drain_count = msgs.len() - MAX_MESSAGE_HISTORY + 1;
+    if msgs.len() >= max_history {
+        let drain_count = msgs.len() - max_history + 1;
         msgs.drain(..drain_count);
     }
     msgs.push(msg);
@@ -30,7 +25,8 @@ async fn store_message(messages: &Arc<Mutex<Vec<ChatMessage>>>, msg: ChatMessage
 async fn broadcast_message(clients: &Clients, msg: &ChatMessage, event_str: &str) {
     let senders: Vec<mpsc::UnboundedSender<Message>> = {
         let clients_read = clients.read().await;
-        clients_read.values()
+        clients_read
+            .values()
             .filter(|c| msg.to_id == "all" || c.user_id == msg.to_id || c.user_id == msg.from_id)
             .map(|c| c.sender.clone())
             .collect()
@@ -57,7 +53,9 @@ pub async fn handle_upload(
 
     let valid_types = ["text", "image", "video", "file"];
     if !valid_types.contains(&msg_type.as_str()) {
-        return Ok(warp::reply::json(&serde_json::json!({"ok": false, "error": "invalid msg_type"})));
+        return Ok(warp::reply::json(
+            &serde_json::json!({"ok": false, "error": "invalid msg_type"}),
+        ));
     }
 
     let ext = std::path::Path::new(&decoded_name)
@@ -74,13 +72,20 @@ pub async fn handle_upload(
     let saved_name = if ext.is_empty() {
         format!("{}_{}", Uuid::new_v4(), sanitize_filename(stem))
     } else {
-        format!("{}_{}.{}", Uuid::new_v4(), sanitize_filename(stem), sanitize_filename(&ext))
+        format!(
+            "{}_{}.{}",
+            Uuid::new_v4(),
+            sanitize_filename(stem),
+            sanitize_filename(&ext)
+        )
     };
 
     let file_path = format!("./chat_files/{}", saved_name);
     if let Err(e) = tokio::fs::write(&file_path, &body).await {
         log::error!("Failed to write file {}: {}", file_path, e);
-        return Ok(warp::reply::json(&serde_json::json!({"ok": false, "error": "file write failed"})));
+        return Ok(warp::reply::json(
+            &serde_json::json!({"ok": false, "error": "file write failed"}),
+        ));
     }
 
     let msg = ChatMessage {
@@ -104,17 +109,23 @@ pub async fn handle_upload(
         broadcast_message(&clients, &msg, &event_str).await;
     }
 
-    Ok(warp::reply::json(&serde_json::json!({"ok": true, "url": msg.content})))
+    Ok(warp::reply::json(
+        &serde_json::json!({"ok": true, "url": msg.content}),
+    ))
 }
 
 /// 强制下载文件，设置 Content-Disposition 为 attachment
-pub async fn handle_force_download(tail: warp::path::Tail) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn handle_force_download(
+    tail: warp::path::Tail,
+) -> Result<impl warp::Reply, warp::Rejection> {
     let file_name = tail.as_str();
     if file_name.contains("..") || file_name.contains('/') || file_name.contains('\\') {
         return Err(warp::reject::not_found());
     }
     let file_path = format!("./chat_files/{}", file_name);
-    let data = tokio::fs::read(&file_path).await.map_err(|_| warp::reject::not_found())?;
+    let data = tokio::fs::read(&file_path)
+        .await
+        .map_err(|_| warp::reject::not_found())?;
 
     let display_name = file_name
         .find('_')
@@ -127,7 +138,10 @@ pub async fn handle_force_download(tail: warp::path::Tail) -> Result<impl warp::
         .header("Content-Type", "application/octet-stream")
         .header(
             "Content-Disposition",
-            format!("attachment; filename=\"{}\"; filename*=UTF-8''{}", display_name, encoded_name),
+            format!(
+                "attachment; filename=\"{}\"; filename*=UTF-8''{}",
+                display_name, encoded_name
+            ),
         )
         .body(data)
         .map_err(|_| warp::reject::not_found())
@@ -165,7 +179,8 @@ pub async fn handle_connection(
         }
 
         if let Ok(text) = msg.to_str() {
-            if text.len() > MAX_TEXT_MESSAGE_LEN + 1024 {
+            let max_text_len = config::get().chat.max_text_message_length;
+            if text.len() > max_text_len + 1024 {
                 log::warn!("Oversized message from {}, ignoring", connected_user_id);
                 continue;
             }
@@ -177,12 +192,16 @@ pub async fn handle_connection(
 
             match event.event.as_str() {
                 "join" => {
-                    nickname = event.data.get("nickname")
+                    nickname = event
+                        .data
+                        .get("nickname")
                         .and_then(|v| v.as_str())
                         .unwrap_or("Anonymous")
                         .to_string();
 
-                    connected_user_id = event.data.get("client_id")
+                    connected_user_id = event
+                        .data
+                        .get("client_id")
                         .and_then(|v| v.as_str())
                         .filter(|s| !s.is_empty() && s.len() <= 64)
                         .map(|s| s.to_string())
@@ -190,8 +209,9 @@ pub async fn handle_connection(
 
                     clients.write().await.remove(&connected_user_id);
 
-                    if nickname.len() > MAX_NICKNAME_LEN {
-                        nickname = nickname.chars().take(MAX_NICKNAME_LEN).collect();
+                    let max_nick = config::get().chat.max_nickname_length;
+                    if nickname.len() > max_nick {
+                        nickname = nickname.chars().take(max_nick).collect();
                     }
 
                     let client = Client {
@@ -199,7 +219,10 @@ pub async fn handle_connection(
                         nickname: nickname.clone(),
                         sender: tx.clone(),
                     };
-                    clients.write().await.insert(connected_user_id.clone(), client);
+                    clients
+                        .write()
+                        .await
+                        .insert(connected_user_id.clone(), client);
 
                     if let Ok(welcome_str) = serde_json::to_string(&WsEvent {
                         event: "welcome".to_string(),
@@ -229,8 +252,9 @@ pub async fn handle_connection(
                         chat_msg.from_name = nickname.clone();
                         chat_msg.timestamp = chrono::Utc::now().timestamp_millis();
 
-                        if chat_msg.msg_type == "text" && chat_msg.content.len() > MAX_TEXT_MESSAGE_LEN {
-                            chat_msg.content = chat_msg.content.chars().take(MAX_TEXT_MESSAGE_LEN).collect();
+                        if chat_msg.msg_type == "text" && chat_msg.content.len() > max_text_len {
+                            chat_msg.content =
+                                chat_msg.content.chars().take(max_text_len).collect();
                         }
 
                         store_message(&messages, chat_msg.clone()).await;
@@ -257,11 +281,14 @@ pub async fn handle_connection(
 async fn broadcast_user_list(clients: &Clients) {
     let (users, senders): (Vec<UserInfo>, Vec<mpsc::UnboundedSender<Message>>) = {
         let clients_read = clients.read().await;
-        let users: Vec<UserInfo> = clients_read.values().map(|c| UserInfo {
-            user_id: c.user_id.clone(),
-            nickname: c.nickname.clone(),
-            ip: String::new(),
-        }).collect();
+        let users: Vec<UserInfo> = clients_read
+            .values()
+            .map(|c| UserInfo {
+                user_id: c.user_id.clone(),
+                nickname: c.nickname.clone(),
+                ip: String::new(),
+            })
+            .collect();
         let senders: Vec<_> = clients_read.values().map(|c| c.sender.clone()).collect();
         (users, senders)
     };

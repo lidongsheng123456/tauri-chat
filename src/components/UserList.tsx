@@ -1,5 +1,6 @@
 import { Bot, LogOut, Search, Users } from "lucide-react";
 import { useState } from "react";
+import { getConfig } from "../config";
 import { AI_BOT_ID } from "../hooks/useAiChat";
 import { getAvatarColorClass, type UserInfo } from "../types";
 
@@ -48,7 +49,7 @@ export function UserList({ users, myUserId, selectedChat, onSelectChat, connecte
 
       {/* Network Info */}
       <div className="sidebar-server-info">
-        <span>Server: {serverIp}:9120</span>
+        <span>Server: {serverIp}:{getConfig().chat_port}</span>
         {onLogout && (
           <button onClick={onLogout} className="sidebar-logout-btn" title="退出登录">
             <LogOut size={14} />

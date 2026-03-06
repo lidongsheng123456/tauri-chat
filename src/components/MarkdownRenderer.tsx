@@ -42,7 +42,7 @@ function CodeBlock({ className, children, node, ...props }: React.HTMLAttributes
   /** 复制代码到剪贴板 */
   const handleCopy = () => {
     const text = extractText(children).replace(/\n$/, "");
-    navigator.clipboard.writeText(text).catch(() => {});
+    navigator.clipboard.writeText(text).catch(() => { });
     setCopied(true);
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => setCopied(false), 2000);

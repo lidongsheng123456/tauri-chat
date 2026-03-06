@@ -65,7 +65,7 @@ export function AiChatWindow({
           <div>
             <h3 className="chat-header__title">AI 助手</h3>
             <p className="chat-header__subtitle">
-              DeepSeek Chat · 支持网页浏览
+              DeepSeek Chat · 搜索 · 网页 · 工具
             </p>
           </div>
         </div>
@@ -90,7 +90,7 @@ export function AiChatWindow({
               <p className="chat-empty__desc">
                 开始和 AI 对话吧！支持上下文连续对话。
                 <br />
-                发送网址可让 AI 自动浏览并获取网页内容。
+                支持搜索互联网、浏览网页、提取图片、查时间、编解码、IP 查询等。
               </p>
             </div>
           </div>
@@ -166,7 +166,7 @@ export function AiChatWindow({
               value={input}
               onChange={handleTextareaInput}
               onKeyDown={handleKeyDown}
-              placeholder="输入消息，Enter 发送... 支持发送网址让 AI 浏览网页"
+              placeholder="输入消息，Enter 发送... 支持搜索、浏览网页、查时间等"
               className="chat-textarea"
             />
             <div className="chat-send-row">

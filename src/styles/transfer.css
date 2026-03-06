@@ -1,0 +1,39 @@
+/* Transfer Indicator (floating, bottom-right) */
+.transfer-indicator {
+  position: fixed; bottom: 20px; right: 20px; z-index: 9999;
+  display: flex; flex-direction: column; gap: 8px;
+  max-width: 320px; pointer-events: auto;
+}
+.transfer-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.10), 0 1px 4px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  min-width: 240px; transition: all 0.3s var(--ease-out);
+}
+.transfer-item--active { border-left: 3px solid var(--accent); }
+.transfer-item--success { border-left: 3px solid #34c759; }
+.transfer-item--error { border-left: 3px solid #ff3b30; }
+.transfer-item__icon { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; }
+.transfer-item--active .transfer-item__icon { color: var(--accent); }
+.transfer-item--success .transfer-item__icon { color: #34c759; }
+.transfer-item--error .transfer-item__icon { color: #ff3b30; }
+.transfer-spinner { width: 18px; height: 18px; border: 2.5px solid var(--accent); border-top-color: transparent; border-radius: 50%; }
+.transfer-item__body { flex: 1; min-width: 0; }
+.transfer-item__label {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--text-secondary); margin-bottom: 2px;
+}
+.transfer-item__name { font-size: 13px; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.transfer-item__close {
+  flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border: none;
+  background: rgba(0, 0, 0, 0.04); border-radius: 6px;
+  color: var(--text-secondary); cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.transfer-item__close:hover { background: rgba(0, 0, 0, 0.08); color: var(--text-primary); }

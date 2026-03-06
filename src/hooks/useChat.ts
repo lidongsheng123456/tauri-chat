@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getConfig } from "../config";
 import type { ChatMessage, UserInfo, WsEvent, WsSendEvent } from "../types";
 
 /** useChat 配置项 */
@@ -7,10 +8,7 @@ interface UseChatOptions {
   nickname: string;
 }
 
-const MAX_RECONNECT_DELAY = 30_000;
-const BASE_RECONNECT_DELAY = 2_000;
 const STORAGE_KEY_PREFIX = "lanchat_messages_";
-const MAX_STORED_MESSAGES = 2000;
 
 /** 获取或生成持久化的客户端 ID */
 function getStableClientId(): string {
@@ -36,7 +34,7 @@ function loadMessages(serverUrl: string): ChatMessage[] {
 /** 将消息保存到 localStorage，超出上限时截断 */
 function saveMessages(serverUrl: string, messages: ChatMessage[]) {
   try {
-    const trimmed = messages.slice(-MAX_STORED_MESSAGES);
+    const trimmed = messages.slice(-getConfig().max_stored_messages);
     localStorage.setItem(STORAGE_KEY_PREFIX + serverUrl, JSON.stringify(trimmed));
   } catch (e) {
     console.error("Failed to save messages:", e);
@@ -137,9 +135,10 @@ export function useChat({ serverUrl, nickname }: UseChatOptions) {
         isConnecting.current = false;
         setConnected(false);
         // Exponential backoff reconnect
+        const cfg = getConfig();
         const delay = Math.min(
-          BASE_RECONNECT_DELAY * Math.pow(1.5, reconnectAttempts.current),
-          MAX_RECONNECT_DELAY
+          cfg.base_reconnect_delay_ms * Math.pow(1.5, reconnectAttempts.current),
+          cfg.max_reconnect_delay_ms
         );
         reconnectAttempts.current += 1;
         reconnectTimer.current = setTimeout(() => {

@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getConfig } from "../config";
 import { useLocalStorage } from "./useLocalStorage";
 
 /** AI 对话单条消息（用于 API 请求） */
@@ -21,9 +22,20 @@ export interface AiChatMessage {
 const AI_BOT_ID = "__ai_bot__";
 const AI_BOT_NAME = "AI 助手";
 const STORAGE_KEY = "lanchat_ai_messages";
-const MAX_CONTEXT_MESSAGES = 20;
 
 export { AI_BOT_ID, AI_BOT_NAME };
+
+/** 根据消息内容推测可能触发的工具，返回状态提示 */
+function detectToolHint(content: string): string | null {
+  const lower = content.toLowerCase();
+  if (/https?:\/\/[^\s]+/.test(content)) return "正在浏览网页并获取内容...";
+  if (/搜索|搜一下|查找|查一查|帮我查|search|google/i.test(lower)) return "正在搜索互联网...";
+  if (/几点|时间|日期|今天|星期|what time|today/i.test(lower)) return "正在获取当前时间...";
+  if (/编码|解码|base64|encode|decode|hex/i.test(lower)) return "正在编码/解码...";
+  if (/ip.*位置|ip.*地址|geolocation|ip.*查询/i.test(lower)) return "正在查询 IP 信息...";
+  if (/图片|提取.*图|images|extract.*img/i.test(lower) && /https?:\/\//.test(content)) return "正在提取网页图片...";
+  return null;
+}
 
 /** 安全地将错误对象转为可读字符串 */
 function formatError(err: unknown): string {
@@ -84,14 +96,12 @@ export function useAiChat() {
     setIsLoading(true);
     setToolStatus(null);
 
-    const hasUrl = /https?:\/\/[^\s]+/.test(content);
-    if (hasUrl) {
-      setToolStatus("正在浏览网页...");
+    const toolHint = detectToolHint(content);
+    if (toolHint) {
+      setToolStatus(toolHint);
       setChatMessages((prev) =>
         prev.map((m) =>
-          m.id === loadingMsg.id
-            ? { ...m, toolStatus: "正在浏览网页并获取内容..." }
-            : m
+          m.id === loadingMsg.id ? { ...m, toolStatus: toolHint } : m
         )
       );
     }
@@ -101,13 +111,14 @@ export function useAiChat() {
         {
           role: "system",
           content: "你是 LanChat 内置的 AI 助手，简洁、友好地回答用户问题。支持中英文。" +
-            "当用户提到网址或要求获取网页信息时，请使用工具获取实时内容后再回答。"
+            "你拥有多种工具能力：浏览网页、搜索互联网、提取网页图片、获取当前时间、编解码文本、查询IP地理位置、统计文本信息。" +
+            "当用户的问题涉及以上能力时，请主动使用对应的工具获取实时数据后再回答。"
         },
       ];
 
       const recentHistory = [...chatMessagesRef.current, userMsg]
         .filter((m) => !m.loading)
-        .slice(-MAX_CONTEXT_MESSAGES);
+        .slice(-getConfig().max_context_messages);
 
       for (const msg of recentHistory) {
         contextMessages.push({ role: msg.role, content: msg.content });

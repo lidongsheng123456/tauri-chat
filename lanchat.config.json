@@ -1,0 +1,28 @@
+{
+  "server": {
+    "chat_port": 9120,
+    "mcp_port": 9121
+  },
+  "ai": {
+    "api_url": "https://api.deepseek.com/chat/completions",
+    "model": "deepseek-chat",
+    "max_tokens": 4000,
+    "max_tool_rounds": 5
+  },
+  "scraper": {
+    "max_content_length": 50000,
+    "request_timeout_secs": 30,
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+  },
+  "chat": {
+    "max_message_history": 5000,
+    "max_nickname_length": 32,
+    "max_text_message_length": 10000,
+    "max_context_messages": 20,
+    "max_stored_messages": 2000
+  },
+  "websocket": {
+    "max_reconnect_delay_ms": 30000,
+    "base_reconnect_delay_ms": 2000
+  }
+}

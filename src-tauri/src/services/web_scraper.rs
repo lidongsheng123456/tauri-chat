@@ -1,20 +1,17 @@
+use crate::config;
 use scraper::{Html, Selector};
 use std::sync::OnceLock;
-
-/// 抓取内容最大长度（字符数），超出则截断
-const MAX_CONTENT_LENGTH: usize = 50_000;
-/// HTTP 请求超时秒数
-const REQUEST_TIMEOUT_SECS: u64 = 30;
 
 /// 全局复用的 HTTP 客户端
 static HTTP_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
 
 /// UTF-8 安全截断：按字符数截取，避免在多字节字符中间切断导致 panic
-fn truncate_safe(s: &str, max_chars: usize) -> &str {
+pub(crate) fn truncate_safe(s: &str, max_chars: usize) -> &str {
     if s.chars().count() <= max_chars {
         return s;
     }
-    let end = s.char_indices()
+    let end = s
+        .char_indices()
         .nth(max_chars)
         .map(|(i, _)| i)
         .unwrap_or(s.len());
@@ -22,11 +19,12 @@ fn truncate_safe(s: &str, max_chars: usize) -> &str {
 }
 
 /// 获取全局复用的 HTTP 客户端
-fn get_client() -> Result<&'static reqwest::Client, String> {
+pub(crate) fn get_client() -> Result<&'static reqwest::Client, String> {
     Ok(HTTP_CLIENT.get_or_init(|| {
+        let cfg = &config::get().scraper;
         reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(REQUEST_TIMEOUT_SECS))
-            .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            .timeout(std::time::Duration::from_secs(cfg.request_timeout_secs))
+            .user_agent(&cfg.user_agent)
             .build()
             .expect("Failed to create HTTP client")
     }))
@@ -68,9 +66,14 @@ pub async fn browse_website(url: &str) -> String {
 pub async fn fetch_url_raw(url: &str) -> String {
     match fetch_raw(url).await {
         Ok(content) => {
+            let max_len = config::get().scraper.max_content_length;
             let char_count = content.chars().count();
-            if char_count > MAX_CONTENT_LENGTH {
-                format!("{}\n\n[内容已截断，原始长度: {} 字符]", truncate_safe(&content, MAX_CONTENT_LENGTH), char_count)
+            if char_count > max_len {
+                format!(
+                    "{}\n\n[内容已截断，原始长度: {} 字符]",
+                    truncate_safe(&content, max_len),
+                    char_count
+                )
             } else {
                 content
             }
@@ -79,11 +82,17 @@ pub async fn fetch_url_raw(url: &str) -> String {
     }
 }
 
-/// 发起 GET 请求并返回响应文本
-async fn fetch_raw(url: &str) -> Result<String, String> {
+/// 发起 GET 请求并返回响应文本（带 SSRF 校验）
+pub(crate) async fn fetch_raw(url: &str) -> Result<String, String> {
     validate_url(url)?;
+    fetch_raw_no_check(url).await
+}
+
+/// 发起 GET 请求并返回响应文本（不做 SSRF 校验，用于可信 URL）
+pub(crate) async fn fetch_raw_no_check(url: &str) -> Result<String, String> {
     let client = get_client()?;
-    let response = client.get(url)
+    let response = client
+        .get(url)
         .send()
         .await
         .map_err(|e| format!("请求失败: {}", e))?;
@@ -92,7 +101,8 @@ async fn fetch_raw(url: &str) -> Result<String, String> {
         return Err(format!("HTTP {}", response.status()));
     }
 
-    response.text()
+    response
+        .text()
         .await
         .map_err(|e| format!("读取响应失败: {}", e))
 }
@@ -111,10 +121,14 @@ async fn fetch_and_parse(url: &str) -> Result<String, String> {
     result.push_str(&format!("URL: {}\n\n", url));
     result.push_str("## 页面内容\n\n");
 
+    let max_len = config::get().scraper.max_content_length;
     let body_char_count = body_text.chars().count();
-    if body_char_count > MAX_CONTENT_LENGTH {
-        result.push_str(truncate_safe(&body_text, MAX_CONTENT_LENGTH));
-        result.push_str(&format!("\n\n[内容已截断，原始长度: {} 字符]", body_char_count));
+    if body_char_count > max_len {
+        result.push_str(truncate_safe(&body_text, max_len));
+        result.push_str(&format!(
+            "\n\n[内容已截断，原始长度: {} 字符]",
+            body_char_count
+        ));
     } else {
         result.push_str(&body_text);
     }
@@ -125,7 +139,10 @@ async fn fetch_and_parse(url: &str) -> Result<String, String> {
             result.push_str(&format!("{}. [{}]({})\n", i + 1, text, href));
         }
         if links.len() > 50 {
-            result.push_str(&format!("\n... 共 {} 个链接，仅显示前 50 个\n", links.len()));
+            result.push_str(&format!(
+                "\n... 共 {} 个链接，仅显示前 50 个\n",
+                links.len()
+            ));
         }
     }
 
@@ -138,7 +155,8 @@ fn extract_title(document: &Html) -> String {
         Ok(s) => s,
         Err(_) => return "无标题".to_string(),
     };
-    document.select(&selector)
+    document
+        .select(&selector)
         .next()
         .map(|el| el.text().collect::<String>().trim().to_string())
         .unwrap_or_else(|| "无标题".to_string())
@@ -146,7 +164,9 @@ fn extract_title(document: &Html) -> String {
 
 /// 从 body 提取正文文本，跳过 script/style/nav 等标签及其所有子节点
 fn extract_body_text(document: &Html) -> String {
-    let skip_tags = ["script", "style", "noscript", "nav", "footer", "header", "svg"];
+    let skip_tags = [
+        "script", "style", "noscript", "nav", "footer", "header", "svg",
+    ];
 
     let body_selector = match Selector::parse("body") {
         Ok(s) => s,
@@ -205,11 +225,19 @@ fn extract_links(document: &Html, base_url: &str) -> Vec<(String, String)> {
                 href.to_string()
             } else if href.starts_with('/') {
                 if let Ok(parsed) = url::Url::parse(base_url) {
-                    format!("{}://{}{}", parsed.scheme(), parsed.host_str().unwrap_or(""), href)
+                    format!(
+                        "{}://{}{}",
+                        parsed.scheme(),
+                        parsed.host_str().unwrap_or(""),
+                        href
+                    )
                 } else {
                     href.to_string()
                 }
-            } else if href.starts_with('#') || href.starts_with("javascript:") || href.starts_with("mailto:") {
+            } else if href.starts_with('#')
+                || href.starts_with("javascript:")
+                || href.starts_with("mailto:")
+            {
                 continue;
             } else {
                 format!("{}/{}", base_url.trim_end_matches('/'), href)
