@@ -8,10 +8,21 @@ interface MarkdownRendererProps {
   content: string;
 }
 
-function CodeBlock({ className, children, ...props }: React.HTMLAttributes<HTMLElement> & { children?: React.ReactNode }) {
+function extractText(node: React.ReactNode): string {
+  if (node == null || typeof node === "boolean") return "";
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(extractText).join("");
+  if (typeof node === "object" && "props" in node) {
+    return extractText((node as React.ReactElement<{ children?: React.ReactNode }>).props.children);
+  }
+  return "";
+}
+
+function CodeBlock({ className, children, node, ...props }: React.HTMLAttributes<HTMLElement> & { children?: React.ReactNode; node?: unknown }) {
   const [copied, setCopied] = useState(false);
   const match = /language-(\w+)/.exec(className || "");
-  const isInline = !match && typeof children === "string" && !children.includes("\n");
+  // Inline code: no language class and the parent is not a <pre>
+  const isInline = !match && !className?.includes("hljs");
 
   if (isInline) {
     return (
@@ -22,7 +33,7 @@ function CodeBlock({ className, children, ...props }: React.HTMLAttributes<HTMLE
   }
 
   const handleCopy = () => {
-    const text = String(children).replace(/\n$/, "");
+    const text = extractText(children).replace(/\n$/, "");
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
