@@ -1,137 +1,161 @@
-# lanchat — 局域网安全聊天工具
+# LanChat — 内置 AI 的局域网聊天工具
 
-> 告别封号风险，畅享自由沟通。零服务器、零审查、零成本的企业级内网即时通讯方案。
-> 内置 DeepSeek AI 助手 + 网页浏览，智能办公触手可及。
-
----
-
-## 为什么需要 lanchat？
-
-在日常工作和生活中，我们高度依赖微信、QQ、钉钉等主流聊天工具。然而，这些平台存在一系列无法回避的痛点：
-
-| 痛点 | 具体表现 |
-|------|---------|
-| **封号风险** | 敏感词触发、频繁群发、异地登录等均可导致账号被封禁，工作沟通瞬间中断 |
-| **隐私泄露** | 所有消息经过平台服务器，聊天记录可被审查、存档、甚至用于数据分析 |
-| **网络依赖** | 必须连接外网才能使用，内网隔离环境（工厂、实验室、涉密单位）无法正常通讯 |
-| **功能限制** | 文件传输大小受限（微信 200MB）、传输速度慢、压缩画质 |
-| **商业绑定** | 企业微信等需要付费、实名认证、企业资质审核 |
-
-**lanchat 从根本上解决了这些问题。**
+> 零服务器、零审查、零成本。局域网即时通讯 + DeepSeek AI 助手 + 14 项智能工具 + MCP 协议服务。
 
 ---
 
-## 核心优势
+## AI 能力
 
-### 1. 零封号风险 — 没有平台，就没有封号
+LanChat 内置 DeepSeek AI 助手，不只是简单问答，而是具备 **14 项工具调用能力** 的智能体，能真正帮你完成工作。
 
-lanchat 运行在局域网内，不经过任何第三方服务器。没有账号体系、没有实名认证、没有敏感词过滤。
+### 工具矩阵
 
-- 不存在"违规"的概念 — 你的网络，你做主
-- 不会因为发送特定内容被警告或封禁
-- 不会因为"异常行为"被限制功能
-- 员工离职不会丢失沟通记录
+| 类别 | 工具 | 说明 |
+|------|------|------|
+| **Web** | `browse_website` | 抓取并解析网页，返回标题、正文、链接 |
+| | `fetch_url_raw` | 获取 URL 原始内容（API / JSON） |
+| | `web_search` | 互联网搜索（DuckDuckGo），获取实时信息 |
+| | `extract_webpage_images` | 提取网页中所有图片 URL 和描述 |
+| **文件系统** | `read_file` | 读取文件内容，查看代码 / 配置 |
+| | `write_file` | 创建或覆盖文件，写脚本 / 改 bug |
+| | `list_directory` | 列出目录结构 |
+| | `create_directory` | 创建目录（递归） |
+| | `delete_path` | 删除文件或目录 |
+| | `search_files` | 按关键词递归搜索文件 |
+| **实用工具** | `get_current_datetime` | 获取当前日期时间、时区 |
+| | `encode_decode` | Base64 / URL / Hex 编解码 |
+| | `get_ip_geolocation` | IP 地理位置查询 |
+| | `text_stats` | 文本字符数 / 词数 / 行数统计 |
 
-### 2. 绝对隐私 — 数据从不离开你的网络
+### 工作流示例
 
 ```
-微信模式：  你 → 腾讯服务器 → 对方    （第三方可见）
-lanchat：   你 → 局域网直连 → 对方    （仅你和对方可见）
+你: 帮我看看 D:\project\src\main.rs 有没有 bug
+
+AI: [调用 read_file] → 读取代码 → 分析逻辑 → 指出问题 → [调用 write_file] → 直接修复
 ```
 
-- **端到端局域网传输**：消息和文件仅在本地网络流转，物理隔绝外网
-- **无云端存储**：不存在"服务器被拖库"的风险
-- **无数据采集**：不收集任何用户行为数据
-- **即开即用**：无需注册、无需手机号、无需任何个人信息
+```
+你: 搜一下 Rust 最新的 async 最佳实践
 
-### 3. 极速文件传输 — 局域网满速直传
+AI: [调用 web_search] → 获取结果 → [调用 browse_website] → 深入阅读 → 总结要点
+```
 
-| 对比项 | 微信 | lanchat |
-|-------|------|---------|
-| 文件大小限制 | 200MB | **无限制** |
-| 传输速度 | 受外网带宽限制（通常 1-10MB/s） | **局域网满速（100-1000MB/s）** |
-| 图片压缩 | 严重压缩画质 | **原图无损传输** |
-| 视频压缩 | 强制压缩 | **原始画质** |
+```
+你: 把 D:\data 目录整理一下，按日期分类
 
-### 4. 零成本部署 — 开箱即用
+AI: [调用 list_directory] → 分析结构 → [调用 create_directory] → 建立分类目录 → 给出操作建议
+```
 
-- **无需服务器**：任何一台电脑启动即为服务端，其他设备加入即可
-- **无需域名**：通过 IP 地址直接连接
-- **无需付费**：完全开源免费，永久使用
-- **无需运维**：无数据库、无后端服务、无 SSL 证书
-- **一键打包**：生成 `.msi` / `.exe` 安装包，分发给同事即可使用
+- 支持 **多轮工具调用**（最多 5 轮），AI 会根据上一步结果自动决定下一步
+- 支持 **上下文连续对话**，保留最近 20 条消息作为上下文
+- 工具调用过程中前端会显示实时状态提示（浏览中… / 搜索中… / 读取文件…）
 
-### 5. 内网隔离环境专属
+### MCP 服务
 
-lanchat 特别适用于以下无法使用外网聊天工具的场景：
+内置 [Model Context Protocol](https://modelcontextprotocol.io/) 服务器（端口 9121），14 项工具全部通过 JSON-RPC 2.0 标准接口暴露，可被任何支持 MCP 的 AI 客户端调用。
 
-- **涉密单位**：政府机关、军工企业等禁止外网通讯的环境
-- **生产车间**：工厂内网环境，工人之间需要实时沟通
-- **科研实验室**：数据隔离要求高，不允许信息外传
-- **校园内网**：学校局域网内师生交流
-- **展会/活动现场**：临时组网，快速建立沟通通道
+```bash
+# 测试 MCP 服务
+curl -X POST http://localhost:9121/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
 
 ---
 
-## 功能特性
+## 聊天功能
 
-- **即时消息** — 文本消息实时收发，支持公共频道和私聊
-- **文件共享** — 拖拽发送任意文件，无大小限制，局域网内极速传输
-- **图片/视频** — 原图原画质发送，支持在线预览和全屏查看
-- **AI 助手** — 内置 DeepSeek AI，支持上下文连续对话和工具调用
-- **网页浏览** — AI 可实时抓取网页内容，解析标题、正文和链接
-- **MCP 服务** — 内置 MCP (Model Context Protocol) 服务器，提供标准化工具接口
-- **传输指示器** — 全局浮动进度面板，上传/下载状态跨页面持久显示
-- **远程下载** — 支持跨设备文件下载，自动绕过系统代理
-- **自动发现** — 打开即可看到同一网络内的所有在线用户
-- **多端支持** — Windows / macOS / Linux 全平台覆盖
-- **现代界面** — 简约高级的 UI 设计，流畅的交互体验
+| 功能 | 说明 |
+|------|------|
+| 即时消息 | 公共频道 + 私聊，WebSocket 实时收发 |
+| 文件共享 | 拖拽发送，无大小限制，局域网满速传输 |
+| 图片 / 视频 | 原图原画质，支持在线预览和全屏查看 |
+| 传输指示器 | 全局浮动进度面板，上传 / 下载状态跨页面持久显示 |
+| 远程下载 | 跨设备文件下载，自动绕过系统代理 |
+| 自动发现 | 打开即可看到同一网络内所有在线用户 |
+
+### 为什么不用微信？
+
+| 对比项 | 微信 / 钉钉 | LanChat |
+|--------|-------------|---------|
+| 封号风险 | 有 | **无**（没有平台就没有封号） |
+| 隐私保护 | 消息经过平台服务器 | **纯局域网传输**，数据不离开本地 |
+| 文件限制 | 200MB / 压缩画质 | **无限制 / 原图原画质** |
+| 传输速度 | 1-10 MB/s | **100-1000 MB/s**（局域网） |
+| 需要外网 | 是 | **否** |
+| 需要注册 | 是 | **否** |
+| AI 工具 | 无 | **14 项智能工具** |
+| 部署成本 | 免费 / 付费 | **免费开源** |
 
 ---
 
 ## 技术架构
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│                    lanchat 客户端                         │
-│  ┌──────────────┐      ┌──────────────────────────────┐ │
-│  │  React 19 UI │◄────►│  Tauri 2 (Rust)              │ │
-│  │  TypeScript   │      │                              │ │
-│  │  原生 CSS     │      │  ┌────────────────────────┐  │ │
-│  │              │      │  │  commands/              │  │ │
-│  │  ChatWindow  │      │  │   ├─ ai_cmd        [AI] │  │ │
-│  │  AiChat      │      │  │   ├─ file_cmd    [文件] │  │ │
-│  │  Transfer    │      │  │   └─ network_cmd [网络] │  │ │
-│  │  Indicator   │      │  ├────────────────────────┤  │ │
-│  │  Markdown    │      │  │  services/              │  │ │
-│  │  Renderer    │      │  │   ├─ ai_service   [AI]  │  │ │
-│  │              │      │  │   ├─ web_scraper [抓取] │  │ │
-│  │              │      │  │   ├─ mcp_server  [MCP]  │  │ │
-│  │              │      │  │   └─ file_service[下载] │  │ │
-│  │              │      │  ├────────────────────────┤  │ │
-│  │              │      │  │  server/                │  │ │
-│  │              │      │  │   ├─ routes  [HTTP路由] │  │ │
-│  │              │      │  │   ├─ handlers [WS处理]  │  │ │
-│  │              │      │  │   └─ state   [共享状态] │  │ │
-│  └──────────────┘      └──────────────────────────────┘ │
-└────────────────────┬──────────────────┬─────────────────┘
-                     │ WebSocket + HTTP │ JSON-RPC 2.0
-                     ▼                  ▼
-              ┌──────────────┐   ┌──────────────┐
-              │   局域网 LAN  │   │  MCP Server  │
-              │   :9120      │   │   :9121      │
-              └──────────────┘   └──────────────┘
-              ┌──────────────┐
-              │  DeepSeek AI │  ← AI 对话 + 工具调用（需外网）
-              └──────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                      LanChat v2.0                            │
+│                                                              │
+│  ┌─────────────────┐       ┌─────────────────────────────┐  │
+│  │  React 19 前端   │◄─────►│  Tauri 2 (Rust) 后端        │  │
+│  │  TypeScript      │       │                             │  │
+│  │                  │       │  commands/    ← Controller   │  │
+│  │  components/     │       │   ai_cmd / file / network   │  │
+│  │  hooks/          │       │                             │  │
+│  │  styles/         │       │  services/    ← Service     │  │
+│  │  config.ts       │       │   ai/    chat_service       │  │
+│  │                  │       │          tool_registry      │  │
+│  │                  │       │          utility_tools       │  │
+│  │                  │       │   web/   scraper / search   │  │
+│  │                  │       │   file/  download / tools   │  │
+│  │                  │       │   mcp_server                │  │
+│  │                  │       │   network_service           │  │
+│  │                  │       │                             │  │
+│  │                  │       │  models/      ← Model       │  │
+│  │                  │       │  server/      ← Infra       │  │
+│  │                  │       │  utils/       ← Utils       │  │
+│  │                  │       │  config.rs    ← Config      │  │
+│  └─────────────────┘       └─────────────────────────────┘  │
+└──────┬──────────────────────────────┬───────────────────┬────┘
+       │ WebSocket + HTTP            │ JSON-RPC 2.0      │
+       ▼                             ▼                   ▼
+┌──────────────┐            ┌──────────────┐    ┌──────────────┐
+│  局域网 LAN   │            │  MCP Server  │    │  DeepSeek AI │
+│  :9120       │            │  :9121       │    │  (外网 API)   │
+└──────────────┘            └──────────────┘    └──────────────┘
 ```
 
-- **前端**：React 19 + TypeScript + 原生 CSS 设计系统
-- **后端**：Rust + Tauri 2 + Warp（分层架构：models / commands / services / server / utils）
-- **通信**：WebSocket 实时消息 + HTTP RESTful 文件传输
-- **AI**：DeepSeek API + Function Calling（工具调用），支持多轮工具交互
-- **MCP**：JSON-RPC 2.0 over HTTP+SSE（端口 9121），提供 `browse_website` / `fetch_url_raw` 工具
-- **安全**：文件名清洗、路径穿越防护、SSRF 防护、API Key 编译时嵌入、输入过滤
+**后端分层架构**（Java 解耦思想）：
+
+| 层级 | 目录 | 职责 |
+|------|------|------|
+| Controller | `commands/` | Tauri IPC 命令，纯委托调用 |
+| Service | `services/ai/` | AI 对话、工具注册与调度 |
+| | `services/web/` | 网页抓取、搜索引擎 |
+| | `services/file/` | 文件下载、文件系统 CRUD |
+| | `services/mcp_server.rs` | MCP 协议服务 |
+| Model | `models/` | 数据结构定义 |
+| Infra | `server/` | HTTP / WebSocket 路由和处理器 |
+| Config | `config.rs` + `lanchat.config.json` | 统一配置中心 |
+
+所有源文件均 **< 300 行**，最大文件 220 行。
+
+---
+
+## 配置
+
+项目根目录 `lanchat.config.json` 集中管理所有配置，无需深入代码修改：
+
+```json
+{
+  "server":    { "chat_port": 9120, "mcp_port": 9121 },
+  "ai":        { "api_url": "https://api.deepseek.com/chat/completions",
+                 "model": "deepseek-chat", "max_tokens": 4000, "max_tool_rounds": 5 },
+  "scraper":   { "max_content_length": 50000, "request_timeout_secs": 30 },
+  "chat":      { "max_message_history": 5000, "max_context_messages": 20 },
+  "websocket": { "max_reconnect_delay_ms": 30000, "base_reconnect_delay_ms": 2000 }
+}
+```
 
 ---
 
@@ -139,134 +163,59 @@ lanchat 特别适用于以下无法使用外网聊天工具的场景：
 
 ### 环境要求
 
-- Node.js ≥ 18
-- Rust ≥ 1.85
-- 系统：Windows 10+、macOS 10.15+、Linux
+- Node.js >= 18
+- Rust >= 1.85
+- Windows 10+ / macOS 10.15+ / Linux
 
 ### 开发运行
 
 ```bash
-# 安装依赖
 npm install
 
 # 设置 DeepSeek API Key（AI 功能需要）
 # Windows PowerShell:
 $env:DEEPSEEK_API_KEY = "sk-你的Key"
-
 # macOS / Linux:
 export DEEPSEEK_API_KEY="sk-你的Key"
 
-# 启动开发模式（前端 + Tauri）
 npm run tauri dev
 ```
 
 ### 打包分发
 
 ```bash
-# 设置 API Key 后构建
 $env:DEEPSEEK_API_KEY = "sk-你的Key"
 npm run tauri build
 ```
 
-构建产物位于 `src-tauri/target/release/bundle/`，包含：
-- Windows: `.msi` 安装包 / `.exe` 便携版
-- macOS: `.dmg` 安装包
+产物位于 `src-tauri/target/release/bundle/`：
+- Windows: `.msi` / `.exe`
+- macOS: `.dmg`
 - Linux: `.deb` / `.AppImage`
 
 > API Key 通过 `option_env!()` 在编译时嵌入 Rust 二进制文件，不会出现在前端代码或配置文件中。
 
 ### 使用方式
 
-1. **创建房间**：启动应用 → 输入昵称 → 选择网卡 → 点击"开启聊天空间"
-2. **加入房间**：启动应用 → 输入昵称 → 切换"加入房间" → 输入主机 IP → 点击"加入聊天空间"
-3. **开始聊天**：在左侧选择联系人或公共频道，发送消息和文件
-4. **AI 助手**：点击左侧"AI 助手"进入 AI 对话，发送网址可让 AI 自动浏览网页
-
----
-
-## 与主流工具对比
-
-| 特性 | 微信 | 钉钉 | 企业微信 | lanchat |
-|------|------|------|---------|--------|
-| 封号风险 | 高 | 中 | 中 | **无** |
-| 隐私保护 | 弱 | 弱 | 弱 | **强（纯本地）** |
-| 需要外网 | 是 | 是 | 是 | **否** |
-| 需要注册 | 是 | 是 | 是 | **否** |
-| 文件大小限制 | 200MB | 4GB | 200MB | **无限制** |
-| 传输速度 | 慢 | 中 | 慢 | **极快（局域网）** |
-| AI 助手 | 否 | 否 | 否 | **DeepSeek + 网页浏览** |
-| 部署成本 | 免费 | 付费 | 付费 | **免费** |
-| 数据所有权 | 平台 | 平台 | 平台 | **用户** |
-| 开源 | 否 | 否 | 否 | **是** |
-
----
-
-## 项目结构
-
-```
-tauri-chat/
-├── src/                              # React 前端
-│   ├── App.tsx                       # 主应用（登录/聊天/AI 路由）
-│   ├── types.ts                      # 共享类型定义和工具函数
-│   ├── components/
-│   │   ├── ChatWindow.tsx            # 聊天窗口（消息、输入、拖拽上传）
-│   │   ├── AiChatWindow.tsx          # AI 聊天窗口（Markdown 渲染）
-│   │   ├── MarkdownRenderer.tsx      # Markdown 渲染器（GFM + 代码高亮）
-│   │   ├── MessageBubble.tsx         # 消息气泡（文本/图片/视频/文件）
-│   │   ├── UserList.tsx              # 侧边栏用户列表
-│   │   ├── LoginScreen.tsx           # 登录界面
-│   │   ├── ImagePreview.tsx          # 图片全屏预览
-│   │   └── TransferIndicator.tsx     # 浮动传输进度指示器
-│   ├── hooks/
-│   │   ├── useChat.ts                # WebSocket 聊天 Hook
-│   │   ├── useAiChat.ts              # AI 聊天 Hook
-│   │   ├── useTransfers.tsx          # 全局传输状态 Context
-│   │   └── useLocalStorage.ts        # localStorage Hook
-│   └── index.css                     # 全局样式（设计系统）
-├── src-tauri/
-│   ├── src/
-│   │   ├── lib.rs                    # 应用入口（Tauri + 服务启动）
-│   │   ├── models/                   # 数据模型
-│   │   │   ├── ai.rs                 # AI 相关结构体
-│   │   │   ├── chat.rs               # 聊天消息/用户/WebSocket 类型
-│   │   │   └── network.rs            # 网络接口类型
-│   │   ├── commands/                 # Tauri 命令层
-│   │   │   ├── ai_cmd.rs             # AI 聊天命令 + API Key 管理
-│   │   │   ├── file_cmd.rs           # 文件下载命令
-│   │   │   └── network_cmd.rs        # 网络信息命令
-│   │   ├── services/                 # 业务逻辑层
-│   │   │   ├── ai_service.rs         # DeepSeek API 调用 + 工具调用循环
-│   │   │   ├── web_scraper.rs        # 网页抓取与解析
-│   │   │   ├── mcp_server.rs         # MCP JSON-RPC 2.0 服务器
-│   │   │   └── file_service.rs       # 文件下载服务
-│   │   ├── server/                   # HTTP/WebSocket 服务
-│   │   │   ├── routes.rs             # Warp 路由定义
-│   │   │   ├── handlers.rs           # 连接处理、消息广播、文件上传
-│   │   │   └── state.rs              # 共享状态（客户端列表、消息历史）
-│   │   └── utils/
-│   │       └── filename.rs           # 文件名清洗工具
-│   ├── Cargo.toml
-│   └── tauri.conf.json
-└── package.json
-```
+1. 启动应用 → 输入昵称 → 选择网卡 → 开启聊天空间
+2. 其他设备：输入主机 IP → 加入聊天空间
+3. 左侧选择联系人或公共频道开始聊天
+4. 点击「AI 助手」进入 AI 对话
 
 ---
 
 ## 适用场景
 
-- 企业内部沟通，替代被封号风险困扰的微信工作群
-- 涉密环境下的安全通讯需求
-- 局域网内快速传输大文件（设计稿、视频素材、工程文件）
-- 临时活动现场的即时通讯组网
-- 对数据隐私有高要求的团队协作
-- 日常办公中使用 AI 助手辅助工作（网页资料获取、问题解答）
+- 企业内网通讯，替代有封号风险的微信工作群
+- 涉密单位 / 工厂车间 / 科研实验室的隔离网络通讯
+- 局域网内大文件传输（设计稿、视频素材、工程文件）
+- 利用 AI 助手浏览网页、分析代码、管理文件
+- 临时活动现场快速组网通讯
 
 ---
 
 ## 开源协议
 
-MIT License — 自由使用、修改、分发。
+MIT License
 
----
-
-> **lanchat** — 你的网络，你的消息，你做主。
+> **LanChat** — 你的网络，你的 AI，你做主。

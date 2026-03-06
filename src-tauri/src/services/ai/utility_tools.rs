@@ -1,4 +1,4 @@
-use crate::services::web_scraper;
+use crate::services::web::scraper as web_scraper;
 
 /// 获取当前日期时间（含时区、星期、Unix 时间戳）
 pub fn get_current_datetime(timezone: Option<&str>) -> String {

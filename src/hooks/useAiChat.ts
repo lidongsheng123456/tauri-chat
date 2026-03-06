@@ -34,6 +34,12 @@ function detectToolHint(content: string): string | null {
   if (/编码|解码|base64|encode|decode|hex/i.test(lower)) return "正在编码/解码...";
   if (/ip.*位置|ip.*地址|geolocation|ip.*查询/i.test(lower)) return "正在查询 IP 信息...";
   if (/图片|提取.*图|images|extract.*img/i.test(lower) && /https?:\/\//.test(content)) return "正在提取网页图片...";
+  if (/读取文件|查看文件|read.*file|打开.*文件|看一下.*代码/i.test(lower)) return "正在读取文件...";
+  if (/写入文件|创建文件|新建.*文件|write.*file|生成.*脚本|修改.*文件|改.*bug/i.test(lower)) return "正在操作文件...";
+  if (/列出.*目录|目录.*结构|文件夹.*内容|list.*dir|ls /i.test(lower)) return "正在浏览目录...";
+  if (/搜索文件|查找文件|search.*file|找.*文件/i.test(lower)) return "正在搜索文件...";
+  if (/删除文件|删除目录|delete.*file|remove/i.test(lower)) return "正在删除...";
+  if (/创建目录|新建文件夹|mkdir|create.*dir/i.test(lower)) return "正在创建目录...";
   return null;
 }
 
@@ -111,7 +117,9 @@ export function useAiChat() {
         {
           role: "system",
           content: "你是 LanChat 内置的 AI 助手，简洁、友好地回答用户问题。支持中英文。" +
-            "你拥有多种工具能力：浏览网页、搜索互联网、提取网页图片、获取当前时间、编解码文本、查询IP地理位置、统计文本信息。" +
+            "你拥有多种工具能力：浏览网页、搜索互联网、提取网页图片、获取当前时间、编解码文本、查询IP地理位置、统计文本信息、" +
+            "读取文件、写入/创建文件、列出目录、创建目录、删除文件或目录、按关键词搜索文件。" +
+            "用户提供文件路径时，你可以读取代码、修改bug、新建脚本、管理文件夹结构。" +
             "当用户的问题涉及以上能力时，请主动使用对应的工具获取实时数据后再回答。"
         },
       ];

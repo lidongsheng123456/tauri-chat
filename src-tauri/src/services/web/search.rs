@@ -1,4 +1,4 @@
-use super::web_scraper::{fetch_raw, fetch_raw_no_check};
+use super::scraper::{fetch_raw, fetch_raw_no_check};
 use scraper::{Html, Selector};
 
 /// 搜索引擎查询（DuckDuckGo HTML），返回搜索结果列表

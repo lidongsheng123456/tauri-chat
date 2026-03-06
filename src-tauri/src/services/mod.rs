@@ -1,6 +1,5 @@
-pub mod ai_service;
-pub mod file_service;
+pub mod ai;
+pub mod file;
+pub mod web;
 pub mod mcp_server;
-pub mod tools_service;
-pub mod web_scraper;
-pub mod web_search;
+pub mod network_service;

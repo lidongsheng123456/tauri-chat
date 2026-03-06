@@ -147,3 +147,41 @@ pub struct IpGeoArgs {
 pub struct TextStatsArgs {
     pub text: String,
 }
+
+/// list_directory 工具的参数
+#[derive(Deserialize)]
+pub struct ListDirArgs {
+    pub path: String,
+}
+
+/// read_file 工具的参数
+#[derive(Deserialize)]
+pub struct ReadFileArgs {
+    pub path: String,
+}
+
+/// write_file 工具的参数
+#[derive(Deserialize)]
+pub struct WriteFileArgs {
+    pub path: String,
+    pub content: String,
+}
+
+/// create_directory 工具的参数
+#[derive(Deserialize)]
+pub struct CreateDirArgs {
+    pub path: String,
+}
+
+/// delete_path 工具的参数
+#[derive(Deserialize)]
+pub struct DeletePathArgs {
+    pub path: String,
+}
+
+/// search_files 工具的参数
+#[derive(Deserialize)]
+pub struct SearchFilesArgs {
+    pub directory: String,
+    pub keyword: String,
+}

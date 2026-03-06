@@ -4,7 +4,7 @@ use tokio::sync::Mutex;
 use warp::Filter;
 
 use crate::models::chat::{ChatMessage, Clients};
-use crate::server::handlers;
+use crate::server::{file_handler, ws_handler};
 
 /// 启动聊天 HTTP/WebSocket 服务，注册 ws、upload、download、files 等路由
 pub async fn start_server(clients: Clients, messages: Arc<Mutex<Vec<ChatMessage>>>, port: u16) {
@@ -29,7 +29,7 @@ pub async fn start_server(clients: Clients, messages: Arc<Mutex<Vec<ChatMessage>
              messages: Arc<Mutex<Vec<ChatMessage>>>,
              addr: Option<SocketAddr>| {
                 ws.on_upgrade(move |socket| {
-                    handlers::handle_connection(socket, clients, messages, addr)
+                    ws_handler::handle_connection(socket, clients, messages, addr)
                 })
             },
         );
@@ -45,14 +45,14 @@ pub async fn start_server(clients: Clients, messages: Arc<Mutex<Vec<ChatMessage>
         .and(warp::header::<String>("x-msg-type"))
         .and(upload_clients)
         .and(messages_filter.clone())
-        .and_then(handlers::handle_upload);
+        .and_then(file_handler::handle_upload);
 
     let download_route = warp::path("files").and(warp::fs::dir("./chat_files"));
 
     let force_download_route = warp::path("download")
         .and(warp::path::tail())
         .and(warp::get())
-        .and_then(handlers::handle_force_download);
+        .and_then(file_handler::handle_force_download);
 
     let cors = warp::cors()
         .allow_any_origin()

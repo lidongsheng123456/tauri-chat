@@ -1,5 +1,5 @@
 use crate::models::ai::AiChatMessage;
-use crate::services::ai_service;
+use crate::services::ai::chat_service;
 
 /// 编译时通过环境变量 DEEPSEEK_API_KEY 嵌入的 API Key
 const EMBEDDED_KEY: Option<&str> = option_env!("DEEPSEEK_API_KEY");
@@ -41,5 +41,5 @@ pub async fn chat_with_ai(messages: Vec<FrontendAiMessage>) -> Result<String, St
         .map(|m| AiChatMessage::text(&m.role, &m.content))
         .collect();
 
-    ai_service::chat_with_tools(&api_key, ai_messages).await
+    chat_service::chat_with_tools(&api_key, ai_messages).await
 }
