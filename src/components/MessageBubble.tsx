@@ -47,6 +47,7 @@ export function MessageBubble({ message, isMine, serverUrl, showName = true }: M
       const savedPath = await invoke<string>("download_chat_file", {
         filePath: message.content,
         fileName: message.file_name || "download",
+        serverUrl: serverUrl,
       });
       setDownloadResult(savedPath);
       setTimeout(() => setDownloadResult(null), 3000);
@@ -110,7 +111,7 @@ export function MessageBubble({ message, isMine, serverUrl, showName = true }: M
               className={`message-file__download ${isMine ? "message-file__download--mine" : "message-file__download--other"} ${downloading ? "message-file__download--loading" : ""}`}
               title={downloading ? "下载中..." : "下载文件"}
             >
-              {downloading ? <div className="chat-upload-spinner animate-spin" style={{ width: 16, height: 16 }} /> : <Download size={18} />}
+              {downloading ? <div className={`chat-upload-spinner animate-spin ${isMine ? "chat-upload-spinner--white" : ""}`} style={{ width: 16, height: 16 }} /> : <Download size={18} />}
             </button>
           </div>
         );

@@ -1,6 +1,8 @@
-import { LogOut, Search, Users } from "lucide-react";
+import { Bot, LogOut, Search, Users } from "lucide-react";
 import { useState } from "react";
 import type { UserInfo } from "../types";
+
+const AI_BOT_ID = "__ai_bot__";
 
 interface UserListProps {
   users: UserInfo[];
@@ -10,6 +12,7 @@ interface UserListProps {
   connected: boolean;
   serverIp: string;
   onLogout?: () => void;
+  hasAiKey?: boolean;
 }
 
 const AVATAR_COLOR_COUNT = 7;
@@ -20,7 +23,7 @@ function getAvatarColorClass(name: string): string {
   return `avatar-color-${Math.abs(hash) % AVATAR_COLOR_COUNT}`;
 }
 
-export function UserList({ users, myUserId, selectedChat, onSelectChat, connected, serverIp, onLogout }: UserListProps) {
+export function UserList({ users, myUserId, selectedChat, onSelectChat, connected, serverIp, onLogout, hasAiKey }: UserListProps) {
   const otherUsers = users.filter((u) => u.user_id !== myUserId);
   const [searchQuery, setSearchQuery] = useState("");
   const filteredUsers = searchQuery
@@ -79,6 +82,23 @@ export function UserList({ users, myUserId, selectedChat, onSelectChat, connecte
               <span className="sidebar-item__meta">{otherUsers.length} 在线</span>
             </div>
             <div className="sidebar-item__desc">公共聊天室...</div>
+          </div>
+        </button>
+
+        {/* AI Bot */}
+        <button
+          onClick={() => onSelectChat(AI_BOT_ID)}
+          className={`sidebar-item ${selectedChat === AI_BOT_ID ? "sidebar-item--active" : ""}`}
+        >
+          <div className="avatar avatar--bot">
+            <Bot size={20} />
+          </div>
+          <div className="sidebar-item__info">
+            <div className="sidebar-item__row">
+              <span className="sidebar-item__name">AI 助手</span>
+              <span className="sidebar-item__meta">{hasAiKey ? "就绪" : "未配置"}</span>
+            </div>
+            <div className="sidebar-item__desc">LongCat AI 对话</div>
           </div>
         </button>
 

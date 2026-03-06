@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { AiChatWindow } from "./components/AiChatWindow";
 import { ChatWindow } from "./components/ChatWindow";
 import { LoginScreen } from "./components/LoginScreen";
 import { UserList } from "./components/UserList";
+import { AI_BOT_ID, useAiChat } from "./hooks/useAiChat";
 import { useChat } from "./hooks/useChat";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 
@@ -39,6 +41,8 @@ function App() {
     serverUrl: loggedIn ? serverUrl : "",
     nickname: loggedIn ? nickname : "",
   });
+
+  const aiChat = useAiChat();
 
   useEffect(() => {
     async function init() {
@@ -96,16 +100,26 @@ function App() {
         connected={connected}
         serverIp={serverIp}
         onLogout={handleLogout}
+        hasAiKey={!!aiChat.apiKey}
       />
-      <ChatWindow
-        messages={messages}
-        myUserId={myUserId}
-        selectedChat={selectedChat}
-        users={users}
-        serverUrl={serverUrl}
-        onSendMessage={handleSendMessage}
-        onUploadFile={handleUploadFile}
-      />
+      {selectedChat === AI_BOT_ID ? (
+        <AiChatWindow
+          chatMessages={aiChat.chatMessages}
+          isLoading={aiChat.isLoading}
+          onSendMessage={aiChat.sendMessage}
+          onClearHistory={aiChat.clearHistory}
+        />
+      ) : (
+        <ChatWindow
+          messages={messages}
+          myUserId={myUserId}
+          selectedChat={selectedChat}
+          users={users}
+          serverUrl={serverUrl}
+          onSendMessage={handleSendMessage}
+          onUploadFile={handleUploadFile}
+        />
+      )}
     </div>
   );
 }

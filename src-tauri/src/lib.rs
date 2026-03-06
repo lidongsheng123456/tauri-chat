@@ -1,7 +1,7 @@
 mod server;
 
 use server::ChatServer;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 #[derive(Serialize)]
@@ -45,20 +45,15 @@ fn get_server_port() -> u16 {
 }
 
 #[tauri::command]
-async fn download_chat_file(file_path: String, file_name: String) -> Result<String, String> {
+async fn download_chat_file(file_path: String, file_name: String, server_url: String) -> Result<String, String> {
     // file_path is like "/files/uuid_filename.ext"
     let stored_name = file_path
         .strip_prefix("/files/")
         .unwrap_or(&file_path);
 
     // Prevent path traversal
-    if stored_name.contains("..") || stored_name.contains('/') || stored_name.contains('\\') {
+    if stored_name.contains("..") || stored_name.contains('\\') {
         return Err("Invalid file path".to_string());
-    }
-
-    let src = PathBuf::from("./chat_files").join(stored_name);
-    if !src.exists() {
-        return Err("File not found".to_string());
     }
 
     // Get user's Downloads directory
@@ -87,12 +82,106 @@ async fn download_chat_file(file_path: String, file_name: String) -> Result<Stri
         }
     }
 
-    // Copy file to Downloads
-    tokio::fs::copy(&src, &dest)
+    // Try local file first (server machine)
+    let local_src = PathBuf::from("./chat_files").join(stored_name);
+    if local_src.exists() {
+        tokio::fs::copy(&local_src, &dest)
+            .await
+            .map_err(|e| format!("Failed to save file: {}", e))?;
+        return Ok(dest.to_string_lossy().to_string());
+    }
+
+    // Fallback: download from server via HTTP (remote machine)
+    // Use no_proxy() to avoid system proxy intercepting LAN requests (causes 502 on Windows)
+    let client = reqwest::Client::builder()
+        .no_proxy()
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+    let url = format!("http://{}/files/{}", server_url, stored_name);
+    let response = client.get(&url)
+        .send()
         .await
-        .map_err(|e| format!("Failed to save file: {}", e))?;
+        .map_err(|e| format!("Download request failed: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("Server returned HTTP {}", response.status()));
+    }
+
+    let data = response.bytes()
+        .await
+        .map_err(|e| format!("Failed to read response: {}", e))?;
+
+    tokio::fs::write(&dest, &data)
+        .await
+        .map_err(|e| format!("Failed to write file: {}", e))?;
 
     Ok(dest.to_string_lossy().to_string())
+}
+
+// ---- AI Chat ----
+
+#[derive(Deserialize)]
+struct AiChoice {
+    message: AiMessage,
+}
+
+#[derive(Deserialize)]
+struct AiMessage {
+    content: String,
+}
+
+#[derive(Deserialize)]
+struct AiResponse {
+    choices: Vec<AiChoice>,
+}
+
+#[derive(Serialize)]
+struct AiChatRequest {
+    model: String,
+    messages: Vec<AiChatMessage>,
+    max_tokens: u32,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+struct AiChatMessage {
+    role: String,
+    content: String,
+}
+
+#[tauri::command]
+async fn chat_with_ai(api_key: String, messages: Vec<AiChatMessage>) -> Result<String, String> {
+    let client = reqwest::Client::builder()
+        .no_proxy()
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+    let body = AiChatRequest {
+        model: "LongCat-Flash-Chat".to_string(),
+        messages,
+        max_tokens: 4000,
+    };
+
+    let response = client
+        .post("https://api.longcat.chat/openai/v1/chat/completions")
+        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Content-Type", "application/json")
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {}", e))?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let text = response.text().await.unwrap_or_default();
+        return Err(format!("API error ({}): {}", status, text));
+    }
+
+    let ai_resp: AiResponse = response.json()
+        .await
+        .map_err(|e| format!("Failed to parse response: {}", e))?;
+
+    ai_resp.choices.first()
+        .map(|c| c.message.content.clone())
+        .ok_or_else(|| "No response from AI".to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -128,6 +217,7 @@ pub fn run() {
             get_hostname,
             get_server_port,
             download_chat_file,
+            chat_with_ai,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

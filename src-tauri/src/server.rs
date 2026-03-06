@@ -11,7 +11,6 @@ use uuid::Uuid;
 use tokio::sync::mpsc;
 
 // ---- Configuration Constants ----
-const MAX_UPLOAD_SIZE: u64 = 100 * 1024 * 1024; // 100 MB
 const MAX_MESSAGE_HISTORY: usize = 5000;
 const MAX_NICKNAME_LEN: usize = 32;
 const MAX_TEXT_MESSAGE_LEN: usize = 10_000;
@@ -91,7 +90,6 @@ impl ChatServer {
         let upload_clients = clients_filter.clone();
         let upload_route = warp::path("upload")
             .and(warp::post())
-            .and(warp::body::content_length_limit(MAX_UPLOAD_SIZE))
             .and(warp::body::bytes())
             .and(warp::header::<String>("x-file-name"))
             .and(warp::header::<String>("x-from-id"))

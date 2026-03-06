@@ -181,27 +181,27 @@ export function ChatWindow({
         </div>
       </div>
 
+      {/* Drag overlay — outside scrollable area so always visible */}
+      {isDragOver && (
+        <div className="chat-drag-overlay animate-scale-in">
+          <div className="chat-drag-overlay__icon">
+            <FileUp size={32} />
+          </div>
+          <div className="chat-drag-overlay__title">释放以上传文件</div>
+          <div className="chat-drag-overlay__desc">支持图片、视频和各类文件</div>
+        </div>
+      )}
+
+      {/* Upload indicator */}
+      {isUploading && (
+        <div className="chat-upload-indicator animate-slide-up">
+          <div className="chat-upload-spinner animate-spin" />
+          <span className="chat-upload-text">文件上传中...</span>
+        </div>
+      )}
+
       {/* Messages Area */}
       <div className="chat-messages">
-        {/* Drag overlay */}
-        {isDragOver && (
-          <div className="chat-drag-overlay animate-scale-in">
-            <div className="chat-drag-overlay__icon">
-              <FileUp size={32} />
-            </div>
-            <div className="chat-drag-overlay__title">释放以上传文件</div>
-            <div className="chat-drag-overlay__desc">支持图片、视频和各类文件</div>
-          </div>
-        )}
-
-        {/* Upload indicator */}
-        {isUploading && (
-          <div className="chat-upload-indicator animate-slide-up">
-            <div className="chat-upload-spinner animate-spin" />
-            <span className="chat-upload-text">文件上传中...</span>
-          </div>
-        )}
-
         {filteredMessages.length === 0 ? (
           <div className="chat-empty">
             <div className="chat-empty__inner animate-fade-in">

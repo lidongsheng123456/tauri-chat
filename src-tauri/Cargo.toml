@@ -38,3 +38,4 @@ bytes = "1"
 tokio-stream = { version = "0.1", features = ["net"] }
 urlencoding = "2"
 dirs = "5"
+reqwest = { version = "0.12", features = ["json", "stream"] }
