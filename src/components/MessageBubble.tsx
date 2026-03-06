@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { Download, FileIcon } from "lucide-react";
 import { useState } from "react";
+import { useTransfers } from "../hooks/useTransfers";
 import type { ChatMessage } from "../types";
 import { ImagePreview } from "./ImagePreview";
 
@@ -28,34 +29,34 @@ function formatFileSize(bytes: number): string {
 
 export function MessageBubble({ message, isMine, serverUrl, showName = true }: MessageBubbleProps) {
   const [showPreview, setShowPreview] = useState(false);
+  const { addTransfer, updateTransfer, transfers } = useTransfers();
 
   const fileUrl = message.content.startsWith("/files/")
     ? `http://${serverUrl}${message.content}`
     : message.content;
 
-  const [downloading, setDownloading] = useState(false);
-  const [downloadResult, setDownloadResult] = useState<string | null>(null);
+  // Check if this message has an active download in global state
+  const transferId = `download_${message.id}`;
+  const activeTransfer = transfers.find((t) => t.id === transferId);
+  const downloading = activeTransfer?.status === "active";
+  const downloadResult = activeTransfer?.status === "success" ? "done" : null;
 
   const handleDownload = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (downloading) return;
-    setDownloading(true);
-    setDownloadResult(null);
+    const fileName = message.file_name || "download";
+    addTransfer(transferId, "download", fileName);
     try {
-      // Use Tauri command to copy file to Downloads folder (bypasses webview restrictions)
-      const savedPath = await invoke<string>("download_chat_file", {
+      await invoke<string>("download_chat_file", {
         filePath: message.content,
-        fileName: message.file_name || "download",
+        fileName: fileName,
         serverUrl: serverUrl,
       });
-      setDownloadResult(savedPath);
-      setTimeout(() => setDownloadResult(null), 3000);
+      updateTransfer(transferId, "success");
     } catch (err) {
       console.error("Download failed:", err);
-      alert(`下载失败: ${err}`);
-    } finally {
-      setDownloading(false);
+      updateTransfer(transferId, "error");
     }
   };
 

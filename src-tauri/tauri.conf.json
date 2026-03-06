@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "lanchat",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "identifier": "com.lanchat.app",
   "build": {
     "frontendDist": "../dist",

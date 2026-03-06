@@ -2,10 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AiChatWindow } from "./components/AiChatWindow";
 import { ChatWindow } from "./components/ChatWindow";
 import { LoginScreen } from "./components/LoginScreen";
+import { TransferIndicator } from "./components/TransferIndicator";
 import { UserList } from "./components/UserList";
 import { AI_BOT_ID, useAiChat } from "./hooks/useAiChat";
 import { useChat } from "./hooks/useChat";
 import { useLocalStorage } from "./hooks/useLocalStorage";
+import { TransferProvider } from "./hooks/useTransfers";
 
 interface NetworkInterface {
   name: string;
@@ -91,36 +93,39 @@ function App() {
   }
 
   return (
-    <div className="app-layout">
-      <UserList
-        users={users}
-        myUserId={myUserId}
-        selectedChat={selectedChat}
-        onSelectChat={setSelectedChat}
-        connected={connected}
-        serverIp={serverIp}
-        onLogout={handleLogout}
-        hasAiKey={!!aiChat.apiKey}
-      />
-      {selectedChat === AI_BOT_ID ? (
-        <AiChatWindow
-          chatMessages={aiChat.chatMessages}
-          isLoading={aiChat.isLoading}
-          onSendMessage={aiChat.sendMessage}
-          onClearHistory={aiChat.clearHistory}
-        />
-      ) : (
-        <ChatWindow
-          messages={messages}
+    <TransferProvider>
+      <div className="app-layout">
+        <UserList
+          users={users}
           myUserId={myUserId}
           selectedChat={selectedChat}
-          users={users}
-          serverUrl={serverUrl}
-          onSendMessage={handleSendMessage}
-          onUploadFile={handleUploadFile}
+          onSelectChat={setSelectedChat}
+          connected={connected}
+          serverIp={serverIp}
+          onLogout={handleLogout}
+          hasAiKey={!!aiChat.apiKey}
         />
-      )}
-    </div>
+        {selectedChat === AI_BOT_ID ? (
+          <AiChatWindow
+            chatMessages={aiChat.chatMessages}
+            isLoading={aiChat.isLoading}
+            onSendMessage={aiChat.sendMessage}
+            onClearHistory={aiChat.clearHistory}
+          />
+        ) : (
+          <ChatWindow
+            messages={messages}
+            myUserId={myUserId}
+            selectedChat={selectedChat}
+            users={users}
+            serverUrl={serverUrl}
+            onSendMessage={handleSendMessage}
+            onUploadFile={handleUploadFile}
+          />
+        )}
+        <TransferIndicator />
+      </div>
+    </TransferProvider>
   );
 }
 

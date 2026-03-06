@@ -1,5 +1,6 @@
 import { CheckCircle2, FileUp, Folder, Image as ImageIcon, Sparkles, XCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTransfers } from "../hooks/useTransfers";
 import type { ChatMessage, UserInfo } from "../types";
 import { MessageBubble } from "./MessageBubble";
 
@@ -30,8 +31,8 @@ export function ChatWindow({
 }: ChatWindowProps) {
   const [input, setInput] = useState("");
   const [isDragOver, setIsDragOver] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const { addTransfer, updateTransfer, hasActiveTransfers } = useTransfers();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -88,19 +89,16 @@ export function ChatWindow({
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      setIsUploading(true);
-      let successCount = 0;
       for (const file of Array.from(files)) {
+        const transferId = `upload_${Date.now()}_${file.name}`;
+        addTransfer(transferId, "upload", file.name);
         try {
           await onUploadFile(file);
-          successCount++;
+          updateTransfer(transferId, "success");
         } catch {
+          updateTransfer(transferId, "error");
           showToast("error", `"${file.name}" 上传失败`);
         }
-      }
-      setIsUploading(false);
-      if (successCount > 0) {
-        showToast("success", `成功上传 ${successCount} 个文件`);
       }
     }
     e.target.value = "";
@@ -136,22 +134,19 @@ export function ChatWindow({
     setIsDragOver(false);
     const files = e.dataTransfer.files;
     if (files.length > 0) {
-      setIsUploading(true);
-      let successCount = 0;
       for (const file of Array.from(files)) {
+        const transferId = `upload_${Date.now()}_${file.name}`;
+        addTransfer(transferId, "upload", file.name);
         try {
           await onUploadFile(file);
-          successCount++;
+          updateTransfer(transferId, "success");
         } catch {
+          updateTransfer(transferId, "error");
           showToast("error", `"${file.name}" 上传失败`);
         }
       }
-      setIsUploading(false);
-      if (successCount > 0) {
-        showToast("success", `成功上传 ${successCount} 个文件`);
-      }
     }
-  }, [onUploadFile, showToast]);
+  }, [onUploadFile, showToast, addTransfer, updateTransfer]);
 
   const otherUserCount = users.filter((u) => u.user_id !== myUserId).length;
 
@@ -193,10 +188,10 @@ export function ChatWindow({
       )}
 
       {/* Upload indicator */}
-      {isUploading && (
+      {hasActiveTransfers && (
         <div className="chat-upload-indicator animate-slide-up">
           <div className="chat-upload-spinner animate-spin" />
-          <span className="chat-upload-text">文件上传中...</span>
+          <span className="chat-upload-text">文件传输中...</span>
         </div>
       )}
 

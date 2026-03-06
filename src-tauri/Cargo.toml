@@ -1,6 +1,6 @@
 [package]
 name = "lanchat"
-version = "1.0.0"
+version = "1.1.0"
 description = "LAN Chat - 内网聊天应用"
 authors = ["lidongsheng"]
 license = ""
