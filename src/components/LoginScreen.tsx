@@ -1,17 +1,20 @@
 import { ArrowRight, ChevronDown, Monitor, Network, Sparkles, Users, Wifi } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+/** 网络接口 */
 interface NetworkInterface {
   name: string;
   ip: string;
 }
 
+/** 登录页 Props */
 interface LoginScreenProps {
   onLogin: (nickname: string, serverIp: string) => void;
   networkInterfaces: NetworkInterface[];
   hostname: string;
 }
 
+/** 登录界面组件 - 支持创建房间和加入房间两种模式 */
 export function LoginScreen({ onLogin, networkInterfaces, hostname }: LoginScreenProps) {
   // Initialize state using a callback to avoid useEffect warnings
   const [nickname, setNickname] = useState(() => hostname || "");

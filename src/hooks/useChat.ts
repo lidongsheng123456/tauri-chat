@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatMessage, UserInfo, WsEvent, WsSendEvent } from "../types";
 
+/** useChat 配置项 */
 interface UseChatOptions {
   serverUrl: string;
   nickname: string;
@@ -11,6 +12,7 @@ const BASE_RECONNECT_DELAY = 2_000;
 const STORAGE_KEY_PREFIX = "lanchat_messages_";
 const MAX_STORED_MESSAGES = 2000;
 
+/** 获取或生成持久化的客户端 ID */
 function getStableClientId(): string {
   const key = "lanchat_client_id";
   let id = localStorage.getItem(key);
@@ -21,6 +23,7 @@ function getStableClientId(): string {
   return id;
 }
 
+/** 从 localStorage 加载指定服务器的消息历史 */
 function loadMessages(serverUrl: string): ChatMessage[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_PREFIX + serverUrl);
@@ -30,6 +33,7 @@ function loadMessages(serverUrl: string): ChatMessage[] {
   }
 }
 
+/** 将消息保存到 localStorage，超出上限时截断 */
 function saveMessages(serverUrl: string, messages: ChatMessage[]) {
   try {
     const trimmed = messages.slice(-MAX_STORED_MESSAGES);
@@ -39,6 +43,11 @@ function saveMessages(serverUrl: string, messages: ChatMessage[]) {
   }
 }
 
+/**
+ * LAN 聊天 Hook - WebSocket 连接、消息收发、文件上传
+ *
+ * @returns 连接状态、用户列表、消息列表及发送/上传方法
+ */
 export function useChat({ serverUrl, nickname }: UseChatOptions) {
   const [connected, setConnected] = useState(false);
   const [myUserId, setMyUserId] = useState("");
@@ -58,6 +67,7 @@ export function useChat({ serverUrl, nickname }: UseChatOptions) {
   const serverUrlRef = useRef(serverUrl);
   serverUrlRef.current = serverUrl;
 
+  /** 清除重连定时器 */
   const clearReconnectTimer = useCallback(() => {
     if (reconnectTimer.current) {
       clearTimeout(reconnectTimer.current);
@@ -65,6 +75,7 @@ export function useChat({ serverUrl, nickname }: UseChatOptions) {
     }
   }, []);
 
+  /** 建立 WebSocket 连接并发送 join 事件 */
   const connect = useCallback(() => {
     if (!serverUrl || !nickname) return;
     if (isConnecting.current) return;
@@ -167,6 +178,7 @@ export function useChat({ serverUrl, nickname }: UseChatOptions) {
     }
   }, [messages, serverUrl]);
 
+  /** 通过 WebSocket 发送消息 */
   const sendMessage = useCallback(
     (toId: string, content: string, msgType: "text" | "image" | "video" | "file" = "text", fileName?: string, fileSize?: number) => {
       if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
@@ -189,6 +201,7 @@ export function useChat({ serverUrl, nickname }: UseChatOptions) {
     [] // No deps needed — uses refs to avoid stale closures
   );
 
+  /** 上传文件到服务器并返回 URL */
   const uploadFile = useCallback(
     async (file: File, toId: string): Promise<string | null> => {
       const msgType: "image" | "video" | "file" = file.type.startsWith("image/")

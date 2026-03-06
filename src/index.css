@@ -1487,6 +1487,26 @@ a { text-decoration: none; color: inherit; }
   40% { transform: scale(1); opacity: 1; }
 }
 
+.ai-tool-spin {
+  animation: ai-tool-rotate 1.5s linear infinite;
+}
+
+@keyframes ai-tool-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.ai-tool-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  font-size: 12px;
+  color: var(--text-muted, #888);
+  background: var(--bg-surface, rgba(0,0,0,0.03));
+  border-top: 1px solid var(--border-color, #eee);
+}
+
 /* ============================================
    MARKDOWN RENDERER (AI chat messages)
    ============================================ */

@@ -4,12 +4,14 @@ import { useTransfers } from "../hooks/useTransfers";
 import type { ChatMessage, UserInfo } from "../types";
 import { MessageBubble } from "./MessageBubble";
 
+/** 提示消息 */
 interface Toast {
   id: number;
   type: "success" | "error";
   message: string;
 }
 
+/** 聊天窗口 Props */
 interface ChatWindowProps {
   messages: ChatMessage[];
   myUserId: string;
@@ -20,6 +22,7 @@ interface ChatWindowProps {
   onUploadFile: (file: File) => void;
 }
 
+/** 聊天消息窗口 - 支持文本、图片、视频、文件及拖拽上传 */
 export function ChatWindow({
   messages,
   myUserId,
@@ -40,6 +43,7 @@ export function ChatWindow({
   const dragCounter = useRef(0);
   const toastId = useRef(0);
 
+  /** 显示 3 秒后自动消失的提示 */
   const showToast = useCallback((type: "success" | "error", message: string) => {
     const id = ++toastId.current;
     setToasts((prev) => [...prev, { id, type, message }]);
@@ -63,6 +67,7 @@ export function ChatWindow({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [filteredMessages.length]);
 
+  /** 发送当前输入内容 */
   const handleSend = () => {
     if (!input.trim()) return;
     onSendMessage(input.trim());
@@ -72,6 +77,7 @@ export function ChatWindow({
     }
   };
 
+  /** Enter 发送，Shift+Enter 换行 */
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -79,6 +85,7 @@ export function ChatWindow({
     }
   };
 
+  /** 输入时自动增高 textarea */
   const handleTextareaInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
     const el = e.target;
@@ -86,6 +93,7 @@ export function ChatWindow({
     el.style.height = Math.min(el.scrollHeight, 120) + "px";
   };
 
+  /** 处理文件选择上传 */
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
@@ -104,6 +112,7 @@ export function ChatWindow({
     e.target.value = "";
   };
 
+  /** 拖拽进入时显示上传遮罩 */
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -113,6 +122,7 @@ export function ChatWindow({
     }
   }, []);
 
+  /** 拖拽离开时隐藏遮罩 */
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -122,11 +132,13 @@ export function ChatWindow({
     }
   }, []);
 
+  /** 阻止默认拖拽行为以允许 drop */
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
   }, []);
 
+  /** 拖拽释放时上传文件 */
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();

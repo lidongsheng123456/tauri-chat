@@ -5,6 +5,7 @@ import { useTransfers } from "../hooks/useTransfers";
 import type { ChatMessage } from "../types";
 import { ImagePreview } from "./ImagePreview";
 
+/** 消息气泡 Props */
 interface MessageBubbleProps {
   message: ChatMessage;
   isMine: boolean;
@@ -14,12 +15,14 @@ interface MessageBubbleProps {
 
 const AVATAR_COLOR_COUNT = 7;
 
+/** 根据昵称生成头像颜色类名 */
 function getAvatarColorClass(name: string): string {
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
   return `avatar-color-${Math.abs(hash) % AVATAR_COLOR_COUNT}`;
 }
 
+/** 将字节数格式化为可读大小（B/KB/MB/GB） */
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return bytes + " B";
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
@@ -27,6 +30,7 @@ function formatFileSize(bytes: number): string {
   return (bytes / (1024 * 1024 * 1024)).toFixed(1) + " GB";
 }
 
+/** 单条消息气泡 - 支持文本、图片、视频、文件及下载 */
 export function MessageBubble({ message, isMine, serverUrl, showName = true }: MessageBubbleProps) {
   const [showPreview, setShowPreview] = useState(false);
   const { addTransfer, updateTransfer, transfers } = useTransfers();
@@ -41,6 +45,7 @@ export function MessageBubble({ message, isMine, serverUrl, showName = true }: M
   const downloading = activeTransfer?.status === "active";
   const downloadResult = activeTransfer?.status === "success" ? "done" : null;
 
+  /** 通过 Tauri 下载文件到本地 */
   const handleDownload = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -60,6 +65,7 @@ export function MessageBubble({ message, isMine, serverUrl, showName = true }: M
     }
   };
 
+  /** 按消息类型渲染内容（图片/视频/文件/文本） */
   const renderContent = () => {
     switch (message.msg_type) {
       case "image":

@@ -1,145 +1,22 @@
-use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::{Mutex, mpsc};
 use warp::ws::{Message, WebSocket};
-use warp::Filter;
 use futures_util::{StreamExt, SinkExt};
-use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use tokio::sync::mpsc;
 
-// ---- Configuration Constants ----
+use crate::models::chat::*;
+use crate::utils::filename::sanitize_filename;
+
+/// 消息历史最大条数，超出则丢弃最旧
 const MAX_MESSAGE_HISTORY: usize = 5000;
+/// 昵称最大字符数
 const MAX_NICKNAME_LEN: usize = 32;
+/// 文本消息最大字符数
 const MAX_TEXT_MESSAGE_LEN: usize = 10_000;
 
-pub type Clients = Arc<RwLock<HashMap<String, Client>>>;
-
-#[derive(Debug, Clone)]
-pub struct Client {
-    pub user_id: String,
-    pub nickname: String,
-    pub sender: mpsc::UnboundedSender<Message>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ChatMessage {
-    pub id: String,
-    pub from_id: String,
-    pub from_name: String,
-    pub to_id: String, // "all" for broadcast
-    pub content: String,
-    pub msg_type: String, // "text", "image", "video", "file"
-    pub file_name: Option<String>,
-    pub file_size: Option<u64>,
-    pub timestamp: i64,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct WsEvent {
-    pub event: String,
-    pub data: serde_json::Value,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct UserInfo {
-    pub user_id: String,
-    pub nickname: String,
-    pub ip: String,
-}
-
-pub struct ChatServer {
-    pub port: u16,
-    pub clients: Clients,
-    pub messages: Arc<Mutex<Vec<ChatMessage>>>,
-}
-
-impl ChatServer {
-    pub fn new(port: u16) -> Self {
-        Self {
-            port,
-            clients: Arc::new(RwLock::new(HashMap::new())),
-            messages: Arc::new(Mutex::new(Vec::new())),
-        }
-    }
-
-    pub async fn start(clients: Clients, messages: Arc<Mutex<Vec<ChatMessage>>>, port: u16) {
-        // Ensure chat_files directory exists once at startup
-        if let Err(e) = tokio::fs::create_dir_all("./chat_files").await {
-            log::error!("Failed to create chat_files directory: {}", e);
-        }
-
-        let clients_filter = warp::any().map(move || clients.clone());
-        let messages_filter = {
-            let msgs = messages.clone();
-            warp::any().map(move || msgs.clone())
-        };
-
-        let ws_route = warp::path("ws")
-            .and(warp::ws())
-            .and(clients_filter.clone())
-            .and(messages_filter.clone())
-            .and(warp::addr::remote())
-            .map(|ws: warp::ws::Ws, clients: Clients, messages: Arc<Mutex<Vec<ChatMessage>>>, addr: Option<SocketAddr>| {
-                ws.on_upgrade(move |socket| handle_connection(socket, clients, messages, addr))
-            });
-
-        // File upload endpoint with size limit
-        let upload_clients = clients_filter.clone();
-        let upload_route = warp::path("upload")
-            .and(warp::post())
-            .and(warp::body::bytes())
-            .and(warp::header::<String>("x-file-name"))
-            .and(warp::header::<String>("x-from-id"))
-            .and(warp::header::<String>("x-from-name"))
-            .and(warp::header::<String>("x-to-id"))
-            .and(warp::header::<String>("x-msg-type"))
-            .and(upload_clients)
-            .and(messages_filter.clone())
-            .and_then(handle_upload);
-
-        // File serving endpoint (inline display for images/videos)
-        let download_route = warp::path("files")
-            .and(warp::fs::dir("./chat_files"));
-
-        // File download endpoint (forces browser download with Content-Disposition)
-        let force_download_route = warp::path("download")
-            .and(warp::path::tail())
-            .and(warp::get())
-            .and_then(handle_force_download);
-
-        let cors = warp::cors()
-            .allow_any_origin()
-            .allow_headers(vec!["content-type", "x-file-name", "x-from-id", "x-from-name", "x-to-id", "x-msg-type"])
-            .allow_methods(vec!["GET", "POST", "OPTIONS"]);
-
-        let routes = ws_route.or(upload_route).or(force_download_route).or(download_route).with(cors);
-
-        log::info!("Chat server starting on port {}", port);
-
-        let addr: std::net::SocketAddr = ([0, 0, 0, 0], port).into();
-        let listener = match tokio::net::TcpListener::bind(addr).await {
-            Ok(l) => l,
-            Err(e) => {
-                log::error!("Failed to bind to port {}: {}. Port may be in use.", port, e);
-                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-                match tokio::net::TcpListener::bind(addr).await {
-                    Ok(l) => l,
-                    Err(e2) => {
-                        log::error!("Retry failed: {}. Server not started.", e2);
-                        return;
-                    }
-                }
-            }
-        };
-        let incoming = tokio_stream::wrappers::TcpListenerStream::new(listener);
-        warp::serve(routes).run_incoming(incoming).await;
-    }
-}
-
-/// Store a message with bounded history (evicts oldest when full)
+/// 将消息写入历史，超出上限时移除最旧记录
 async fn store_message(messages: &Arc<Mutex<Vec<ChatMessage>>>, msg: ChatMessage) {
     let mut msgs = messages.lock().await;
     if msgs.len() >= MAX_MESSAGE_HISTORY {
@@ -149,7 +26,7 @@ async fn store_message(messages: &Arc<Mutex<Vec<ChatMessage>>>, msg: ChatMessage
     msgs.push(msg);
 }
 
-/// Broadcast a message event to relevant clients, releasing the lock quickly
+/// 向相关客户端广播消息（私聊或群发）
 async fn broadcast_message(clients: &Clients, msg: &ChatMessage, event_str: &str) {
     let senders: Vec<mpsc::UnboundedSender<Message>> = {
         let clients_read = clients.read().await;
@@ -158,13 +35,13 @@ async fn broadcast_message(clients: &Clients, msg: &ChatMessage, event_str: &str
             .map(|c| c.sender.clone())
             .collect()
     };
-    // Send outside the lock to minimize contention
     for sender in senders {
         let _ = sender.send(Message::text(event_str));
     }
 }
 
-async fn handle_upload(
+/// 处理文件上传，保存到 chat_files 并广播消息
+pub async fn handle_upload(
     body: bytes::Bytes,
     file_name: String,
     from_id: String,
@@ -174,12 +51,10 @@ async fn handle_upload(
     clients: Clients,
     messages: Arc<Mutex<Vec<ChatMessage>>>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    // Decode the URL-encoded filename
     let decoded_name = urlencoding::decode(&file_name)
         .map(|s| s.into_owned())
         .unwrap_or_else(|_| file_name.clone());
 
-    // Validate msg_type
     let valid_types = ["text", "image", "video", "file"];
     if !valid_types.contains(&msg_type.as_str()) {
         return Ok(warp::reply::json(&serde_json::json!({"ok": false, "error": "invalid msg_type"})));
@@ -220,10 +95,8 @@ async fn handle_upload(
         timestamp: chrono::Utc::now().timestamp_millis(),
     };
 
-    // Store with bounded history
     store_message(&messages, msg.clone()).await;
 
-    // Broadcast to relevant clients
     if let Ok(event_str) = serde_json::to_string(&WsEvent {
         event: "message".to_string(),
         data: serde_json::to_value(&msg).unwrap_or_default(),
@@ -234,16 +107,15 @@ async fn handle_upload(
     Ok(warp::reply::json(&serde_json::json!({"ok": true, "url": msg.content})))
 }
 
-async fn handle_force_download(tail: warp::path::Tail) -> Result<impl warp::Reply, warp::Rejection> {
+/// 强制下载文件，设置 Content-Disposition 为 attachment
+pub async fn handle_force_download(tail: warp::path::Tail) -> Result<impl warp::Reply, warp::Rejection> {
     let file_name = tail.as_str();
-    // Prevent path traversal
     if file_name.contains("..") || file_name.contains('/') || file_name.contains('\\') {
         return Err(warp::reject::not_found());
     }
     let file_path = format!("./chat_files/{}", file_name);
     let data = tokio::fs::read(&file_path).await.map_err(|_| warp::reject::not_found())?;
 
-    // Extract the original filename (strip UUID prefix: "uuid_originalname")
     let display_name = file_name
         .find('_')
         .map(|i| &file_name[i + 1..])
@@ -261,14 +133,8 @@ async fn handle_force_download(tail: warp::path::Tail) -> Result<impl warp::Repl
         .unwrap())
 }
 
-fn sanitize_filename(name: &str) -> String {
-    name.chars()
-        .take(100) // Limit filename length
-        .map(|c| if c.is_alphanumeric() || c == '.' || c == '-' || c == '_' { c } else { '_' })
-        .collect()
-}
-
-async fn handle_connection(
+/// 处理 WebSocket 连接，处理 join、message 等事件
+pub async fn handle_connection(
     ws: WebSocket,
     clients: Clients,
     messages: Arc<Mutex<Vec<ChatMessage>>>,
@@ -279,7 +145,6 @@ async fn handle_connection(
 
     let ip = addr.map(|a| a.ip().to_string()).unwrap_or_default();
 
-    // Spawn sender task with graceful shutdown
     let sender_closed = Arc::new(AtomicBool::new(false));
     let sender_closed_clone = sender_closed.clone();
     tokio::spawn(async move {
@@ -295,13 +160,11 @@ async fn handle_connection(
     let mut connected_user_id = String::new();
 
     while let Some(Ok(msg)) = ws_rx.next().await {
-        // Skip if sender task has closed
         if sender_closed.load(Ordering::Relaxed) {
             break;
         }
 
         if let Ok(text) = msg.to_str() {
-            // Reject oversized messages early
             if text.len() > MAX_TEXT_MESSAGE_LEN + 1024 {
                 log::warn!("Oversized message from {}, ignoring", connected_user_id);
                 continue;
@@ -319,17 +182,14 @@ async fn handle_connection(
                         .unwrap_or("Anonymous")
                         .to_string();
 
-                    // Use client-provided stable ID if present, otherwise generate new
                     connected_user_id = event.data.get("client_id")
                         .and_then(|v| v.as_str())
                         .filter(|s| !s.is_empty() && s.len() <= 64)
                         .map(|s| s.to_string())
                         .unwrap_or_else(|| Uuid::new_v4().to_string());
 
-                    // Remove old session if same user_id is already connected
                     clients.write().await.remove(&connected_user_id);
 
-                    // Sanitize nickname length
                     if nickname.len() > MAX_NICKNAME_LEN {
                         nickname = nickname.chars().take(MAX_NICKNAME_LEN).collect();
                     }
@@ -341,7 +201,6 @@ async fn handle_connection(
                     };
                     clients.write().await.insert(connected_user_id.clone(), client);
 
-                    // Send user their ID
                     if let Ok(welcome_str) = serde_json::to_string(&WsEvent {
                         event: "welcome".to_string(),
                         data: serde_json::json!({
@@ -353,10 +212,8 @@ async fn handle_connection(
                         let _ = tx.send(Message::text(welcome_str));
                     }
 
-                    // Broadcast user list
                     broadcast_user_list(&clients).await;
 
-                    // Send chat history
                     let history = messages.lock().await.clone();
                     if let Ok(history_str) = serde_json::to_string(&WsEvent {
                         event: "history".to_string(),
@@ -367,18 +224,15 @@ async fn handle_connection(
                 }
                 "message" => {
                     if let Ok(mut chat_msg) = serde_json::from_value::<ChatMessage>(event.data) {
-                        // Server-side enforcement: override fields to prevent spoofing
                         chat_msg.id = Uuid::new_v4().to_string();
                         chat_msg.from_id = connected_user_id.clone();
                         chat_msg.from_name = nickname.clone();
                         chat_msg.timestamp = chrono::Utc::now().timestamp_millis();
 
-                        // Validate text content length
                         if chat_msg.msg_type == "text" && chat_msg.content.len() > MAX_TEXT_MESSAGE_LEN {
                             chat_msg.content = chat_msg.content.chars().take(MAX_TEXT_MESSAGE_LEN).collect();
                         }
 
-                        // Store with bounded history
                         store_message(&messages, chat_msg.clone()).await;
 
                         if let Ok(event_str) = serde_json::to_string(&WsEvent {
@@ -394,12 +248,12 @@ async fn handle_connection(
         }
     }
 
-    // Client disconnected
     clients.write().await.remove(&connected_user_id);
     broadcast_user_list(&clients).await;
     log::info!("User {} ({}) disconnected", nickname, connected_user_id);
 }
 
+/// 向所有客户端广播当前在线用户列表
 async fn broadcast_user_list(clients: &Clients) {
     let (users, senders): (Vec<UserInfo>, Vec<mpsc::UnboundedSender<Message>>) = {
         let clients_read = clients.read().await;
@@ -411,7 +265,6 @@ async fn broadcast_user_list(clients: &Clients) {
         let senders: Vec<_> = clients_read.values().map(|c| c.sender.clone()).collect();
         (users, senders)
     };
-    // Build event string outside the lock
     let event_str = match serde_json::to_string(&WsEvent {
         event: "users".to_string(),
         data: serde_json::to_value(&users).unwrap_or_default(),

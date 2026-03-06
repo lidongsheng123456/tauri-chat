@@ -1,5 +1,10 @@
 import { useCallback, useState } from "react";
 
+/**
+ * 持久化 localStorage 的 Hook
+ *
+ * @returns [值, 设置函数, 移除函数]
+ */
 export function useLocalStorage<T>(key: string, initialValue: T) {
   const [storedValue, setStoredValue] = useState<T>(() => {
     try {

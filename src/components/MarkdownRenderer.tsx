@@ -4,10 +4,12 @@ import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
 
+/** Markdown 渲染器 Props */
 interface MarkdownRendererProps {
   content: string;
 }
 
+/** 从 React 节点递归提取纯文本（用于复制代码） */
 function extractText(node: React.ReactNode): string {
   if (node == null || typeof node === "boolean") return "";
   if (typeof node === "string" || typeof node === "number") return String(node);
@@ -18,6 +20,7 @@ function extractText(node: React.ReactNode): string {
   return "";
 }
 
+/** 代码块组件 - 支持语法高亮、复制、行内/块级区分 */
 function CodeBlock({ className, children, node, ...props }: React.HTMLAttributes<HTMLElement> & { children?: React.ReactNode; node?: unknown }) {
   const [copied, setCopied] = useState(false);
   const match = /language-(\w+)/.exec(className || "");
@@ -32,6 +35,7 @@ function CodeBlock({ className, children, node, ...props }: React.HTMLAttributes
     );
   }
 
+  /** 复制代码到剪贴板 */
   const handleCopy = () => {
     const text = extractText(children).replace(/\n$/, "");
     navigator.clipboard.writeText(text);
@@ -57,6 +61,7 @@ function CodeBlock({ className, children, node, ...props }: React.HTMLAttributes
   );
 }
 
+/** Markdown 渲染组件 - GFM、代码高亮、外链新窗口 */
 export function MarkdownRenderer({ content }: MarkdownRendererProps) {
   return (
     <div className="md-content">

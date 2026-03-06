@@ -1,6 +1,7 @@
 import { ArrowDownToLine, ArrowUpFromLine, CheckCircle2, X, XCircle } from "lucide-react";
 import { useTransfers } from "../hooks/useTransfers";
 
+/** 传输任务指示器 - 显示上传/下载进度与状态 */
 export function TransferIndicator() {
   const { transfers, removeTransfer } = useTransfers();
 

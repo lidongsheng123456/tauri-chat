@@ -4,6 +4,7 @@ import type { UserInfo } from "../types";
 
 const AI_BOT_ID = "__ai_bot__";
 
+/** 用户列表 Props */
 interface UserListProps {
   users: UserInfo[];
   myUserId: string;
@@ -17,12 +18,14 @@ interface UserListProps {
 
 const AVATAR_COLOR_COUNT = 7;
 
+/** 根据昵称生成头像颜色类名 */
 function getAvatarColorClass(name: string): string {
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
   return `avatar-color-${Math.abs(hash) % AVATAR_COLOR_COUNT}`;
 }
 
+/** 侧边栏用户列表 - 支持群聊、AI 助手、私聊切换 */
 export function UserList({ users, myUserId, selectedChat, onSelectChat, connected, serverIp, onLogout, hasAiKey }: UserListProps) {
   const otherUsers = users.filter((u) => u.user_id !== myUserId);
   const [searchQuery, setSearchQuery] = useState("");
@@ -98,7 +101,7 @@ export function UserList({ users, myUserId, selectedChat, onSelectChat, connecte
               <span className="sidebar-item__name">AI 助手</span>
               <span className="sidebar-item__meta">{hasAiKey ? "就绪" : "未配置"}</span>
             </div>
-            <div className="sidebar-item__desc">LongCat AI 对话</div>
+            <div className="sidebar-item__desc">DeepSeek AI 对话</div>
           </div>
         </button>
 

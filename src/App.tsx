@@ -9,16 +9,19 @@ import { useChat } from "./hooks/useChat";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import { TransferProvider } from "./hooks/useTransfers";
 
+/** 网络接口信息 */
 interface NetworkInterface {
   name: string;
   ip: string;
 }
 
+/** 登录会话数据 */
 interface SessionData {
   nickname: string;
   serverIp: string;
 }
 
+/** 调用 Tauri 后端命令，失败时返回 null */
 async function tauriInvoke<T>(cmd: string): Promise<T | null> {
   try {
     const { invoke } = await import("@tauri-apps/api/core");
@@ -28,6 +31,7 @@ async function tauriInvoke<T>(cmd: string): Promise<T | null> {
   }
 }
 
+/** 应用根组件 - 管理登录状态、聊天/AI 切换、消息与文件传输 */
 function App() {
   const [networkInterfaces, setNetworkInterfaces] = useState<NetworkInterface[]>([]);
   const [hostname, setHostname] = useState("");
@@ -60,6 +64,7 @@ function App() {
     init();
   }, []);
 
+  /** 处理登录：保存昵称与服务器 IP，写入 session */
   const handleLogin = useCallback((nick: string, ip: string) => {
     setNickname(nick);
     setServerIp(ip);
@@ -67,6 +72,7 @@ function App() {
     setSession({ nickname: nick, serverIp: ip });
   }, [setSession]);
 
+  /** 处理登出：清除 session 与本地状态 */
   const handleLogout = useCallback(() => {
     setLoggedIn(false);
     setNickname("");
@@ -74,6 +80,7 @@ function App() {
     removeSession();
   }, [removeSession]);
 
+  /** 向当前选中会话发送文本消息 */
   const handleSendMessage = useCallback(
     (content: string) => {
       sendMessage(selectedChat, content, "text");
@@ -81,6 +88,7 @@ function App() {
     [sendMessage, selectedChat]
   );
 
+  /** 向当前选中会话上传文件 */
   const handleUploadFile = useCallback(
     async (file: File) => {
       await uploadFile(file, selectedChat);
@@ -109,6 +117,7 @@ function App() {
           <AiChatWindow
             chatMessages={aiChat.chatMessages}
             isLoading={aiChat.isLoading}
+            toolStatus={aiChat.toolStatus}
             onSendMessage={aiChat.sendMessage}
             onClearHistory={aiChat.clearHistory}
           />
