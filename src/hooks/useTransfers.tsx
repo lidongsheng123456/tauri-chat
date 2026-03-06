@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 
 /** 单个传输任务（上传/下载） */
 export interface TransferItem {
@@ -26,6 +26,16 @@ export function TransferProvider({ children }: { children: ReactNode }) {
   const [transfers, setTransfers] = useState<TransferItem[]>([]);
   const autoRemoveTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
+  /** 卸载时清理所有定时器 */
+  useEffect(() => {
+    return () => {
+      for (const timer of autoRemoveTimers.current.values()) {
+        clearTimeout(timer);
+      }
+      autoRemoveTimers.current.clear();
+    };
+  }, []);
+
   /** 添加传输任务 */
   const addTransfer = useCallback((id: string, type: "upload" | "download", fileName: string) => {
     setTransfers((prev) => {
@@ -49,7 +59,8 @@ export function TransferProvider({ children }: { children: ReactNode }) {
     setTransfers((prev) =>
       prev.map((t) => (t.id === id ? { ...t, status } : t))
     );
-    // Auto-remove completed transfers after 3s
+    const prevTimer = autoRemoveTimers.current.get(id);
+    if (prevTimer) clearTimeout(prevTimer);
     const timer = setTimeout(() => {
       removeTransfer(id);
     }, 3000);

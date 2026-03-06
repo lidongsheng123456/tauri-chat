@@ -49,6 +49,7 @@ pub fn run() {
             commands::network_cmd::get_server_port,
             commands::file_cmd::download_chat_file,
             commands::ai_cmd::chat_with_ai,
+            commands::ai_cmd::has_api_key,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -13,15 +13,20 @@ pub async fn download_file(file_path: &str, file_name: &str, server_url: &str) -
     let downloads_dir = dirs::download_dir()
         .unwrap_or_else(|| dirs::home_dir().unwrap_or_else(|| PathBuf::from(".")));
 
-    let mut dest = downloads_dir.join(file_name);
+    let safe_name = std::path::Path::new(file_name)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("download");
+
+    let mut dest = downloads_dir.join(safe_name);
 
     if dest.exists() {
-        let stem = std::path::Path::new(file_name)
+        let stem = std::path::Path::new(safe_name)
             .file_stem()
             .and_then(|s| s.to_str())
             .unwrap_or("file")
             .to_string();
-        let ext = std::path::Path::new(file_name)
+        let ext = std::path::Path::new(safe_name)
             .extension()
             .and_then(|e| e.to_str())
             .map(|e| format!(".{}", e))

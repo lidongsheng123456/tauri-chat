@@ -111,7 +111,7 @@ function App() {
           connected={connected}
           serverIp={serverIp}
           onLogout={handleLogout}
-          hasAiKey={!!aiChat.apiKey}
+
         />
         {selectedChat === AI_BOT_ID ? (
           <AiChatWindow

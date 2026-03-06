@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Build scripts with API keys
+build.ps1
+build.cmd
+build.sh

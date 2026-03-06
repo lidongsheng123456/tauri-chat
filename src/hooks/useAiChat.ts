@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocalStorage } from "./useLocalStorage";
 
 /** AI 对话单条消息（用于 API 请求） */
@@ -25,21 +25,45 @@ const MAX_CONTEXT_MESSAGES = 20;
 
 export { AI_BOT_ID, AI_BOT_NAME };
 
+/** 安全地将错误对象转为可读字符串 */
+function formatError(err: unknown): string {
+  if (typeof err === "string") return err;
+  if (err instanceof Error) return err.message;
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return "未知错误";
+  }
+}
+
 /**
  * AI 聊天 Hook - 管理 AI 对话状态和消息发送
+ * API Key 在编译时通过环境变量嵌入 Rust 二进制，前端无需管理密钥
  *
  * @returns AI 聊天相关的状态和操作方法
  */
 export function useAiChat() {
-  const [apiKey, setApiKey, removeApiKey] = useLocalStorage<string>("lanchat_ai_api_key", "");
+  const [hasKey, setHasKey] = useState(false);
   const [chatMessages, setChatMessages] = useLocalStorage<AiChatMessage[]>(STORAGE_KEY, []);
   const [isLoading, setIsLoading] = useState(false);
   const [toolStatus, setToolStatus] = useState<string | null>(null);
-  const abortRef = useRef(false);
+  const mountedRef = useRef(true);
+  const chatMessagesRef = useRef(chatMessages);
+  chatMessagesRef.current = chatMessages;
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  /** 启动时检查后端是否已配置 API Key（编译时嵌入或凭据管理器） */
+  useEffect(() => {
+    invoke<boolean>("has_api_key").then(setHasKey).catch(() => setHasKey(false));
+  }, []);
 
   /** 发送消息并请求 AI 回复 */
   const sendMessage = useCallback(async (content: string) => {
-    if (!apiKey || !content.trim() || isLoading) return;
+    if (!hasKey || !content.trim() || isLoading) return;
 
     const userMsg: AiChatMessage = {
       id: crypto.randomUUID(),
@@ -59,7 +83,6 @@ export function useAiChat() {
     setChatMessages((prev) => [...prev, userMsg, loadingMsg]);
     setIsLoading(true);
     setToolStatus(null);
-    abortRef.current = false;
 
     const hasUrl = /https?:\/\/[^\s]+/.test(content);
     if (hasUrl) {
@@ -82,7 +105,7 @@ export function useAiChat() {
         },
       ];
 
-      const recentHistory = [...chatMessages, userMsg]
+      const recentHistory = [...chatMessagesRef.current, userMsg]
         .filter((m) => !m.loading)
         .slice(-MAX_CONTEXT_MESSAGES);
 
@@ -91,11 +114,10 @@ export function useAiChat() {
       }
 
       const reply = await invoke<string>("chat_with_ai", {
-        apiKey,
         messages: contextMessages,
       });
 
-      if (abortRef.current) return;
+      if (!mountedRef.current) return;
 
       setChatMessages((prev) =>
         prev.map((m) =>
@@ -105,18 +127,21 @@ export function useAiChat() {
         )
       );
     } catch (err) {
+      if (!mountedRef.current) return;
       setChatMessages((prev) =>
         prev.map((m) =>
           m.id === loadingMsg.id
-            ? { ...m, content: `\u274c 请求失败: ${err}`, loading: false, toolStatus: undefined, timestamp: Date.now() }
+            ? { ...m, content: `\u274c 请求失败: ${formatError(err)}`, loading: false, toolStatus: undefined, timestamp: Date.now() }
             : m
         )
       );
     } finally {
-      setIsLoading(false);
-      setToolStatus(null);
+      if (mountedRef.current) {
+        setIsLoading(false);
+        setToolStatus(null);
+      }
     }
-  }, [apiKey, chatMessages, isLoading, setChatMessages]);
+  }, [hasKey, isLoading, setChatMessages]);
 
   /** 清空对话历史 */
   const clearHistory = useCallback(() => {
@@ -124,9 +149,7 @@ export function useAiChat() {
   }, [setChatMessages]);
 
   return {
-    apiKey,
-    setApiKey,
-    removeApiKey,
+    hasKey,
     chatMessages,
     isLoading,
     toolStatus,

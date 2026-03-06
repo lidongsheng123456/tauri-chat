@@ -123,14 +123,14 @@ pub async fn handle_force_download(tail: warp::path::Tail) -> Result<impl warp::
 
     let encoded_name = urlencoding::encode(display_name);
 
-    Ok(warp::http::Response::builder()
+    warp::http::Response::builder()
         .header("Content-Type", "application/octet-stream")
         .header(
             "Content-Disposition",
             format!("attachment; filename=\"{}\"; filename*=UTF-8''{}", display_name, encoded_name),
         )
         .body(data)
-        .unwrap())
+        .map_err(|_| warp::reject::not_found())
 }
 
 /// 处理 WebSocket 连接，处理 join、message 等事件

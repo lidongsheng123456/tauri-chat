@@ -12,7 +12,7 @@ interface AiChatWindowProps {
   onClearHistory: () => void;
 }
 
-/** AI 聊天窗口 - Markdown 渲染、加载态、清空历史 */
+/** AI 聊天窗口 - Markdown 渲染、加载态 */
 export function AiChatWindow({
   chatMessages,
   isLoading,
@@ -69,15 +69,13 @@ export function AiChatWindow({
             </p>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 4 }}>
-          <button
-            onClick={onClearHistory}
-            className="chat-toolbar__btn"
-            title="清空对话"
-          >
-            <Trash2 size={18} />
-          </button>
-        </div>
+        <button
+          onClick={onClearHistory}
+          className="chat-toolbar__btn"
+          title="清空对话"
+        >
+          <Trash2 size={18} />
+        </button>
       </div>
 
       {/* Messages */}

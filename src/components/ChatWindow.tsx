@@ -42,14 +42,23 @@ export function ChatWindow({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dragCounter = useRef(0);
   const toastId = useRef(0);
+  const toastTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+
+  useEffect(() => {
+    return () => {
+      for (const timer of toastTimers.current.values()) clearTimeout(timer);
+    };
+  }, []);
 
   /** 显示 3 秒后自动消失的提示 */
   const showToast = useCallback((type: "success" | "error", message: string) => {
     const id = ++toastId.current;
     setToasts((prev) => [...prev, { id, type, message }]);
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
+      toastTimers.current.delete(id);
     }, 3000);
+    toastTimers.current.set(id, timer);
   }, []);
 
   const filteredMessages = useMemo(() =>

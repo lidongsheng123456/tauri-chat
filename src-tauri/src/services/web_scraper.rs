@@ -1,9 +1,13 @@
 use scraper::{Html, Selector};
+use std::sync::OnceLock;
 
 /// 抓取内容最大长度（字符数），超出则截断
 const MAX_CONTENT_LENGTH: usize = 50_000;
 /// HTTP 请求超时秒数
 const REQUEST_TIMEOUT_SECS: u64 = 30;
+
+/// 全局复用的 HTTP 客户端
+static HTTP_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
 
 /// UTF-8 安全截断：按字符数截取，避免在多字节字符中间切断导致 panic
 fn truncate_safe(s: &str, max_chars: usize) -> &str {
@@ -17,13 +21,39 @@ fn truncate_safe(s: &str, max_chars: usize) -> &str {
     &s[..end]
 }
 
-/// 创建带超时和 User-Agent 的 HTTP 客户端
-fn build_client() -> Result<reqwest::Client, String> {
-    reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(REQUEST_TIMEOUT_SECS))
-        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
-        .build()
-        .map_err(|e| format!("Failed to create HTTP client: {}", e))
+/// 获取全局复用的 HTTP 客户端
+fn get_client() -> Result<&'static reqwest::Client, String> {
+    Ok(HTTP_CLIENT.get_or_init(|| {
+        reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(REQUEST_TIMEOUT_SECS))
+            .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            .build()
+            .expect("Failed to create HTTP client")
+    }))
+}
+
+/// 校验 URL 合法性，拒绝内网地址防止 SSRF
+fn validate_url(url: &str) -> Result<(), String> {
+    let parsed = url::Url::parse(url).map_err(|e| format!("URL 格式错误: {}", e))?;
+    match parsed.scheme() {
+        "http" | "https" => {}
+        s => return Err(format!("不支持的协议: {}", s)),
+    }
+    if let Some(host) = parsed.host_str() {
+        if host == "localhost"
+            || host == "127.0.0.1"
+            || host == "0.0.0.0"
+            || host.starts_with("192.168.")
+            || host.starts_with("10.")
+            || host.starts_with("172.")
+            || host == "[::1]"
+        {
+            return Err("不允许访问内网地址".to_string());
+        }
+    } else {
+        return Err("URL 缺少主机名".to_string());
+    }
+    Ok(())
 }
 
 /// 抓取并解析网页，返回标题、正文和链接列表
@@ -51,7 +81,8 @@ pub async fn fetch_url_raw(url: &str) -> String {
 
 /// 发起 GET 请求并返回响应文本
 async fn fetch_raw(url: &str) -> Result<String, String> {
-    let client = build_client()?;
+    validate_url(url)?;
+    let client = get_client()?;
     let response = client.get(url)
         .send()
         .await
@@ -103,7 +134,10 @@ async fn fetch_and_parse(url: &str) -> Result<String, String> {
 
 /// 从 HTML 文档提取 title 标签内容
 fn extract_title(document: &Html) -> String {
-    let selector = Selector::parse("title").unwrap();
+    let selector = match Selector::parse("title") {
+        Ok(s) => s,
+        Err(_) => return "无标题".to_string(),
+    };
     document.select(&selector)
         .next()
         .map(|el| el.text().collect::<String>().trim().to_string())
@@ -114,7 +148,10 @@ fn extract_title(document: &Html) -> String {
 fn extract_body_text(document: &Html) -> String {
     let skip_tags = ["script", "style", "noscript", "nav", "footer", "header", "svg"];
 
-    let body_selector = Selector::parse("body").unwrap();
+    let body_selector = match Selector::parse("body") {
+        Ok(s) => s,
+        Err(_) => return String::new(),
+    };
     let body = match document.select(&body_selector).next() {
         Some(b) => b,
         None => return String::new(),
@@ -149,7 +186,10 @@ fn extract_body_text(document: &Html) -> String {
 
 /// 提取页面内所有链接，返回 (显示文本, 完整 URL)
 fn extract_links(document: &Html, base_url: &str) -> Vec<(String, String)> {
-    let selector = Selector::parse("a[href]").unwrap();
+    let selector = match Selector::parse("a[href]") {
+        Ok(s) => s,
+        Err(_) => return Vec::new(),
+    };
     let mut links = Vec::new();
 
     for element in document.select(&selector) {

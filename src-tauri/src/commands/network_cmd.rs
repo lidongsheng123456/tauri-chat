@@ -36,5 +36,5 @@ pub fn get_hostname() -> String {
 /// 返回聊天服务端口号
 #[tauri::command]
 pub fn get_server_port() -> u16 {
-    9120
+    crate::CHAT_PORT
 }

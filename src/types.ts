@@ -1,3 +1,13 @@
+/** 头像颜色总数 */
+const AVATAR_COLOR_COUNT = 7;
+
+/** 根据昵称生成头像颜色类名 */
+export function getAvatarColorClass(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return `avatar-color-${Math.abs(hash) % AVATAR_COLOR_COUNT}`;
+}
+
 /** 聊天消息数据结构 */
 export interface ChatMessage {
   id: string;

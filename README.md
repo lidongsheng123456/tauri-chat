@@ -1,7 +1,7 @@
-# lanchat — 局域网安全聊天工具 v1.1.0
+# lanchat — 局域网安全聊天工具
 
 > 告别封号风险，畅享自由沟通。零服务器、零审查、零成本的企业级内网即时通讯方案。
-> 内置 AI 助手，智能办公触手可及。
+> 内置 DeepSeek AI 助手 + 网页浏览，智能办公触手可及。
 
 ---
 
@@ -78,7 +78,9 @@ lanchat 特别适用于以下无法使用外网聊天工具的场景：
 - **即时消息** — 文本消息实时收发，支持公共频道和私聊
 - **文件共享** — 拖拽发送任意文件，无大小限制，局域网内极速传输
 - **图片/视频** — 原图原画质发送，支持在线预览和全屏查看
-- **AI 助手** — 内置 LLM 聊天机器人，支持上下文连续对话
+- **AI 助手** — 内置 DeepSeek AI，支持上下文连续对话和工具调用
+- **网页浏览** — AI 可实时抓取网页内容，解析标题、正文和链接
+- **MCP 服务** — 内置 MCP (Model Context Protocol) 服务器，提供标准化工具接口
 - **传输指示器** — 全局浮动进度面板，上传/下载状态跨页面持久显示
 - **远程下载** — 支持跨设备文件下载，自动绕过系统代理
 - **自动发现** — 打开即可看到同一网络内的所有在线用户
@@ -90,36 +92,46 @@ lanchat 特别适用于以下无法使用外网聊天工具的场景：
 ## 技术架构
 
 ```
-┌──────────────────────────────────────────────┐
-│               lanchat 客户端                  │
-│  ┌─────────────┐     ┌─────────────────────┐ │
-│  │  React UI   │◄───►│  Tauri (Rust)       │ │
-│  │  TypeScript  │     │  ┌───────────────┐  │ │
-│  │  原生 CSS    │     │  │ warp Server   │  │ │
-│  │             │     │  │  - /ws        │  │ │
-│  │  ChatWindow │     │  │  - /upload    │  │ │
-│  │  AiChat     │     │  │  - /files     │  │ │
-│  │  Transfer   │     │  └───────────────┘  │ │
-│  │  Indicator  │     │  Tauri Commands     │ │
-│  │             │─────│  - download_file    │ │
-│  │             │     │  - chat_with_ai     │ │
-│  └─────────────┘     └─────────────────────┘ │
-└──────────────────┬───────────────────────────┘
-                   │ WebSocket + HTTP
-                   ▼
-           ┌──────────────┐
-           │   局域网 LAN  │  ← 数据仅在此范围流转
-           └──────────────┘
-           ┌──────────────┐
-           │  LLM API     │  ← AI 助手（可选，需外网）
-           └──────────────┘
+┌──────────────────────────────────────────────────────────┐
+│                    lanchat 客户端                         │
+│  ┌──────────────┐      ┌──────────────────────────────┐ │
+│  │  React 19 UI │◄────►│  Tauri 2 (Rust)              │ │
+│  │  TypeScript   │      │                              │ │
+│  │  原生 CSS     │      │  ┌────────────────────────┐  │ │
+│  │              │      │  │  commands/              │  │ │
+│  │  ChatWindow  │      │  │   ├─ ai_cmd        [AI] │  │ │
+│  │  AiChat      │      │  │   ├─ file_cmd    [文件] │  │ │
+│  │  Transfer    │      │  │   └─ network_cmd [网络] │  │ │
+│  │  Indicator   │      │  ├────────────────────────┤  │ │
+│  │  Markdown    │      │  │  services/              │  │ │
+│  │  Renderer    │      │  │   ├─ ai_service   [AI]  │  │ │
+│  │              │      │  │   ├─ web_scraper [抓取] │  │ │
+│  │              │      │  │   ├─ mcp_server  [MCP]  │  │ │
+│  │              │      │  │   └─ file_service[下载] │  │ │
+│  │              │      │  ├────────────────────────┤  │ │
+│  │              │      │  │  server/                │  │ │
+│  │              │      │  │   ├─ routes  [HTTP路由] │  │ │
+│  │              │      │  │   ├─ handlers [WS处理]  │  │ │
+│  │              │      │  │   └─ state   [共享状态] │  │ │
+│  └──────────────┘      └──────────────────────────────┘ │
+└────────────────────┬──────────────────┬─────────────────┘
+                     │ WebSocket + HTTP │ JSON-RPC 2.0
+                     ▼                  ▼
+              ┌──────────────┐   ┌──────────────┐
+              │   局域网 LAN  │   │  MCP Server  │
+              │   :9120      │   │   :9121      │
+              └──────────────┘   └──────────────┘
+              ┌──────────────┐
+              │  DeepSeek AI │  ← AI 对话 + 工具调用（需外网）
+              └──────────────┘
 ```
 
 - **前端**：React 19 + TypeScript + 原生 CSS 设计系统
-- **后端**：Rust + Tauri 2 + Warp（高性能异步 WebSocket 服务）
+- **后端**：Rust + Tauri 2 + Warp（分层架构：models / commands / services / server / utils）
 - **通信**：WebSocket 实时消息 + HTTP RESTful 文件传输
-- **AI**：Rust 端代理 LLM API 请求（绕过 WebView CORS 限制）
-- **安全**：文件名清洗、路径穿越防护、身份校验、输入过滤
+- **AI**：DeepSeek API + Function Calling（工具调用），支持多轮工具交互
+- **MCP**：JSON-RPC 2.0 over HTTP+SSE（端口 9121），提供 `browse_website` / `fetch_url_raw` 工具
+- **安全**：文件名清洗、路径穿越防护、SSRF 防护、API Key 编译时嵌入、输入过滤
 
 ---
 
@@ -137,6 +149,13 @@ lanchat 特别适用于以下无法使用外网聊天工具的场景：
 # 安装依赖
 npm install
 
+# 设置 DeepSeek API Key（AI 功能需要）
+# Windows PowerShell:
+$env:DEEPSEEK_API_KEY = "sk-你的Key"
+
+# macOS / Linux:
+export DEEPSEEK_API_KEY="sk-你的Key"
+
 # 启动开发模式（前端 + Tauri）
 npm run tauri dev
 ```
@@ -144,7 +163,8 @@ npm run tauri dev
 ### 打包分发
 
 ```bash
-# 构建安装包
+# 设置 API Key 后构建
+$env:DEEPSEEK_API_KEY = "sk-你的Key"
 npm run tauri build
 ```
 
@@ -153,11 +173,14 @@ npm run tauri build
 - macOS: `.dmg` 安装包
 - Linux: `.deb` / `.AppImage`
 
+> API Key 通过 `option_env!()` 在编译时嵌入 Rust 二进制文件，不会出现在前端代码或配置文件中。
+
 ### 使用方式
 
 1. **创建房间**：启动应用 → 输入昵称 → 选择网卡 → 点击"开启聊天空间"
 2. **加入房间**：启动应用 → 输入昵称 → 切换"加入房间" → 输入主机 IP → 点击"加入聊天空间"
 3. **开始聊天**：在左侧选择联系人或公共频道，发送消息和文件
+4. **AI 助手**：点击左侧"AI 助手"进入 AI 对话，发送网址可让 AI 自动浏览网页
 
 ---
 
@@ -171,7 +194,7 @@ npm run tauri build
 | 需要注册 | 是 | 是 | 是 | **否** |
 | 文件大小限制 | 200MB | 4GB | 200MB | **无限制** |
 | 传输速度 | 慢 | 中 | 慢 | **极快（局域网）** |
-| AI 助手 | 否 | 否 | 否 | **内置** |
+| AI 助手 | 否 | 否 | 否 | **DeepSeek + 网页浏览** |
 | 部署成本 | 免费 | 付费 | 付费 | **免费** |
 | 数据所有权 | 平台 | 平台 | 平台 | **用户** |
 | 开源 | 否 | 否 | 否 | **是** |
@@ -182,26 +205,46 @@ npm run tauri build
 
 ```
 tauri-chat/
-├── src/                          # React 前端
-│   ├── App.tsx                   # 主应用（登录/聊天路由）
+├── src/                              # React 前端
+│   ├── App.tsx                       # 主应用（登录/聊天/AI 路由）
+│   ├── types.ts                      # 共享类型定义和工具函数
 │   ├── components/
-│   │   ├── ChatWindow.tsx        # 聊天窗口（消息、输入、文件上传）
-│   │   ├── AiChatWindow.tsx      # AI 聊天窗口
-│   │   ├── MessageBubble.tsx     # 消息气泡（文本/图片/视频/文件）
-│   │   ├── UserList.tsx          # 侧边栏用户列表
-│   │   ├── LoginScreen.tsx       # 登录界面
-│   │   ├── ImagePreview.tsx      # 图片全屏预览
-│   │   └── TransferIndicator.tsx # 浮动传输进度指示器
+│   │   ├── ChatWindow.tsx            # 聊天窗口（消息、输入、拖拽上传）
+│   │   ├── AiChatWindow.tsx          # AI 聊天窗口（Markdown 渲染）
+│   │   ├── MarkdownRenderer.tsx      # Markdown 渲染器（GFM + 代码高亮）
+│   │   ├── MessageBubble.tsx         # 消息气泡（文本/图片/视频/文件）
+│   │   ├── UserList.tsx              # 侧边栏用户列表
+│   │   ├── LoginScreen.tsx           # 登录界面
+│   │   ├── ImagePreview.tsx          # 图片全屏预览
+│   │   └── TransferIndicator.tsx     # 浮动传输进度指示器
 │   ├── hooks/
-│   │   ├── useChat.ts            # WebSocket 聊天 Hook
-│   │   ├── useAiChat.ts          # AI 聊天 Hook
-│   │   ├── useTransfers.tsx      # 全局传输状态 Context
-│   │   └── useLocalStorage.ts    # localStorage Hook
-│   └── index.css                 # 全局样式
+│   │   ├── useChat.ts                # WebSocket 聊天 Hook
+│   │   ├── useAiChat.ts              # AI 聊天 Hook
+│   │   ├── useTransfers.tsx          # 全局传输状态 Context
+│   │   └── useLocalStorage.ts        # localStorage Hook
+│   └── index.css                     # 全局样式（设计系统）
 ├── src-tauri/
 │   ├── src/
-│   │   ├── lib.rs                # Tauri Commands（下载、AI）
-│   │   └── server.rs             # warp HTTP/WebSocket 服务器
+│   │   ├── lib.rs                    # 应用入口（Tauri + 服务启动）
+│   │   ├── models/                   # 数据模型
+│   │   │   ├── ai.rs                 # AI 相关结构体
+│   │   │   ├── chat.rs               # 聊天消息/用户/WebSocket 类型
+│   │   │   └── network.rs            # 网络接口类型
+│   │   ├── commands/                 # Tauri 命令层
+│   │   │   ├── ai_cmd.rs             # AI 聊天命令 + API Key 管理
+│   │   │   ├── file_cmd.rs           # 文件下载命令
+│   │   │   └── network_cmd.rs        # 网络信息命令
+│   │   ├── services/                 # 业务逻辑层
+│   │   │   ├── ai_service.rs         # DeepSeek API 调用 + 工具调用循环
+│   │   │   ├── web_scraper.rs        # 网页抓取与解析
+│   │   │   ├── mcp_server.rs         # MCP JSON-RPC 2.0 服务器
+│   │   │   └── file_service.rs       # 文件下载服务
+│   │   ├── server/                   # HTTP/WebSocket 服务
+│   │   │   ├── routes.rs             # Warp 路由定义
+│   │   │   ├── handlers.rs           # 连接处理、消息广播、文件上传
+│   │   │   └── state.rs              # 共享状态（客户端列表、消息历史）
+│   │   └── utils/
+│   │       └── filename.rs           # 文件名清洗工具
 │   ├── Cargo.toml
 │   └── tauri.conf.json
 └── package.json
@@ -216,29 +259,7 @@ tauri-chat/
 - 局域网内快速传输大文件（设计稿、视频素材、工程文件）
 - 临时活动现场的即时通讯组网
 - 对数据隐私有高要求的团队协作
-- 日常办公中使用 AI 助手辅助工作
-
----
-
-## 更新日志
-
-### v1.1.0 (2026-03-06)
-
-- 新增 AI 聊天助手（LLM API 集成）
-- 新增全局传输状态管理和浮动进度指示器
-- 移除文件上传大小限制
-- 修复远程机器下载文件 502 错误（系统代理问题）
-- 修复拖拽上传覆盖层在滚动后不可见的问题
-- 修复绿色消息气泡中下载旋转器颜色不可见
-- 图片预览使用 Portal 渲染，避免被裁剪
-
-### v1.0.0 (2026-03-05)
-
-- 基础即时消息（公共频道 + 私聊）
-- 文件/图片/视频传输与预览
-- WebSocket 自动重连（指数退避）
-- 消息历史持久化（localStorage）
-- 现代化 UI 界面
+- 日常办公中使用 AI 助手辅助工作（网页资料获取、问题解答）
 
 ---
 

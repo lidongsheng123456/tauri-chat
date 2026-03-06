@@ -1,5 +1,5 @@
 import { Check, Copy } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
@@ -23,9 +23,13 @@ function extractText(node: React.ReactNode): string {
 /** 代码块组件 - 支持语法高亮、复制、行内/块级区分 */
 function CodeBlock({ className, children, node, ...props }: React.HTMLAttributes<HTMLElement> & { children?: React.ReactNode; node?: unknown }) {
   const [copied, setCopied] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const match = /language-(\w+)/.exec(className || "");
-  // Inline code: no language class and the parent is not a <pre>
   const isInline = !match && !className?.includes("hljs");
+
+  useEffect(() => {
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, []);
 
   if (isInline) {
     return (
@@ -38,9 +42,10 @@ function CodeBlock({ className, children, node, ...props }: React.HTMLAttributes
   /** 复制代码到剪贴板 */
   const handleCopy = () => {
     const text = extractText(children).replace(/\n$/, "");
-    navigator.clipboard.writeText(text);
+    navigator.clipboard.writeText(text).catch(() => {});
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -61,21 +66,28 @@ function CodeBlock({ className, children, node, ...props }: React.HTMLAttributes
   );
 }
 
+/** 外链组件 - 新窗口打开 */
+function ExternalLink({ children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { children?: React.ReactNode; node?: unknown }) {
+  return (
+    <a {...props} target="_blank" rel="noopener noreferrer">
+      {children}
+    </a>
+  );
+}
+
 /** Markdown 渲染组件 - GFM、代码高亮、外链新窗口 */
 export function MarkdownRenderer({ content }: MarkdownRendererProps) {
+  const components = useMemo(() => ({
+    code: CodeBlock,
+    a: ExternalLink,
+  }), []);
+
   return (
     <div className="md-content">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeHighlight]}
-        components={{
-          code: CodeBlock,
-          a: ({ children, ...props }) => (
-            <a {...props} target="_blank" rel="noopener noreferrer">
-              {children}
-            </a>
-          ),
-        }}
+        components={components}
       >
         {content}
       </ReactMarkdown>

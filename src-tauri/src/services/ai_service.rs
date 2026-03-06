@@ -110,11 +110,6 @@ async fn call_ai_api(
         .map_err(|e| format!("Failed to parse response: {}", e))
 }
 
-/// 从 AI 消息中提取文本内容
-fn extract_content(msg: &AiMessage) -> Option<String> {
-    msg.content.clone()
-}
-
 /// 带工具调用的 AI 对话，支持多轮工具调用
 pub async fn chat_with_tools(api_key: &str, messages: Vec<AiChatMessage>) -> Result<String, String> {
     let client = build_http_client()?;
@@ -129,7 +124,7 @@ pub async fn chat_with_tools(api_key: &str, messages: Vec<AiChatMessage>) -> Res
 
         if let Some(tool_calls) = &choice.message.tool_calls {
             if tool_calls.is_empty() {
-                return extract_content(&choice.message)
+                return choice.message.content.clone()
                     .ok_or_else(|| "No response from AI".to_string());
             }
 
@@ -148,14 +143,14 @@ pub async fn chat_with_tools(api_key: &str, messages: Vec<AiChatMessage>) -> Res
                 conversation.push(AiChatMessage::tool_result(&tc.id, &tc.function.name, &result));
             }
         } else {
-            return extract_content(&choice.message)
+            return choice.message.content.clone()
                 .ok_or_else(|| "No response from AI".to_string());
         }
     }
 
     let final_resp = call_ai_api(&client, api_key, &conversation, None).await?;
     final_resp.choices.first()
-        .and_then(|c| extract_content(&c.message))
+        .and_then(|c| c.message.content.clone())
         .ok_or_else(|| "No response from AI after tool calls".to_string())
 }
 

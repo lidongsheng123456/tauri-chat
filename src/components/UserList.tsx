@@ -1,8 +1,7 @@
 import { Bot, LogOut, Search, Users } from "lucide-react";
 import { useState } from "react";
-import type { UserInfo } from "../types";
-
-const AI_BOT_ID = "__ai_bot__";
+import { AI_BOT_ID } from "../hooks/useAiChat";
+import { getAvatarColorClass, type UserInfo } from "../types";
 
 /** 用户列表 Props */
 interface UserListProps {
@@ -13,20 +12,10 @@ interface UserListProps {
   connected: boolean;
   serverIp: string;
   onLogout?: () => void;
-  hasAiKey?: boolean;
-}
-
-const AVATAR_COLOR_COUNT = 7;
-
-/** 根据昵称生成头像颜色类名 */
-function getAvatarColorClass(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return `avatar-color-${Math.abs(hash) % AVATAR_COLOR_COUNT}`;
 }
 
 /** 侧边栏用户列表 - 支持群聊、AI 助手、私聊切换 */
-export function UserList({ users, myUserId, selectedChat, onSelectChat, connected, serverIp, onLogout, hasAiKey }: UserListProps) {
+export function UserList({ users, myUserId, selectedChat, onSelectChat, connected, serverIp, onLogout }: UserListProps) {
   const otherUsers = users.filter((u) => u.user_id !== myUserId);
   const [searchQuery, setSearchQuery] = useState("");
   const filteredUsers = searchQuery
@@ -99,7 +88,7 @@ export function UserList({ users, myUserId, selectedChat, onSelectChat, connecte
           <div className="sidebar-item__info">
             <div className="sidebar-item__row">
               <span className="sidebar-item__name">AI 助手</span>
-              <span className="sidebar-item__meta">{hasAiKey ? "就绪" : "未配置"}</span>
+              <span className="sidebar-item__meta">就绪</span>
             </div>
             <div className="sidebar-item__desc">DeepSeek AI 对话</div>
           </div>

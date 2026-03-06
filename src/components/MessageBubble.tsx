@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { Download, FileIcon } from "lucide-react";
 import { useState } from "react";
 import { useTransfers } from "../hooks/useTransfers";
-import type { ChatMessage } from "../types";
+import { getAvatarColorClass, type ChatMessage } from "../types";
 import { ImagePreview } from "./ImagePreview";
 
 /** 消息气泡 Props */
@@ -11,15 +11,6 @@ interface MessageBubbleProps {
   isMine: boolean;
   serverUrl: string;
   showName?: boolean;
-}
-
-const AVATAR_COLOR_COUNT = 7;
-
-/** 根据昵称生成头像颜色类名 */
-function getAvatarColorClass(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return `avatar-color-${Math.abs(hash) % AVATAR_COLOR_COUNT}`;
 }
 
 /** 将字节数格式化为可读大小（B/KB/MB/GB） */
