@@ -1,6 +1,7 @@
 import { Bot, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { AiChatMessage } from "../hooks/useAiChat";
+import { MarkdownRenderer } from "./MarkdownRenderer";
 
 interface AiChatWindowProps {
   chatMessages: AiChatMessage[];
@@ -107,8 +108,10 @@ export function AiChatWindow({
                       <span className="ai-typing__dot" />
                       <span className="ai-typing__dot" />
                     </div>
+                  ) : msg.role === "assistant" ? (
+                    <MarkdownRenderer content={msg.content} />
                   ) : (
-                    <div className={`message-text ${msg.role === "user" ? "message-text--mine" : "message-text--other"}`} style={{ whiteSpace: "pre-wrap" }}>
+                    <div className="message-text message-text--mine" style={{ whiteSpace: "pre-wrap" }}>
                       {msg.content}
                     </div>
                   )}
