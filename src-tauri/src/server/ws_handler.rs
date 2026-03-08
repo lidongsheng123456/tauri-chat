@@ -51,7 +51,9 @@ pub async fn handle_connection(
     let sender_closed_clone = sender_closed.clone();
     tokio::spawn(async move {
         while let Some(msg) = rx.recv().await {
-            if ws_tx.send(msg).await.is_err() { break; }
+            if ws_tx.send(msg).await.is_err() {
+                break;
+            }
         }
         sender_closed_clone.store(true, Ordering::Relaxed);
     });
@@ -60,7 +62,9 @@ pub async fn handle_connection(
     let mut connected_user_id = String::new();
 
     while let Some(Ok(msg)) = ws_rx.next().await {
-        if sender_closed.load(Ordering::Relaxed) { break; }
+        if sender_closed.load(Ordering::Relaxed) {
+            break;
+        }
 
         if let Ok(text) = msg.to_str() {
             let max_text_len = config::get().chat.max_text_message_length;
@@ -75,14 +79,29 @@ pub async fn handle_connection(
             };
 
             match event.event.as_str() {
-                "join" => handle_join(
-                    &event, &clients, &messages, &tx, &ip,
-                    &mut nickname, &mut connected_user_id,
-                ).await,
-                "message" => handle_chat_message(
-                    &event, &clients, &messages,
-                    &connected_user_id, &nickname, max_text_len,
-                ).await,
+                "join" => {
+                    handle_join(
+                        &event,
+                        &clients,
+                        &messages,
+                        &tx,
+                        &ip,
+                        &mut nickname,
+                        &mut connected_user_id,
+                    )
+                    .await
+                }
+                "message" => {
+                    handle_chat_message(
+                        &event,
+                        &clients,
+                        &messages,
+                        &connected_user_id,
+                        &nickname,
+                        max_text_len,
+                    )
+                    .await
+                }
                 _ => {}
             }
         }
@@ -103,12 +122,16 @@ async fn handle_join(
     nickname: &mut String,
     connected_user_id: &mut String,
 ) {
-    *nickname = event.data.get("nickname")
+    *nickname = event
+        .data
+        .get("nickname")
         .and_then(|v| v.as_str())
         .unwrap_or("Anonymous")
         .to_string();
 
-    *connected_user_id = event.data.get("client_id")
+    *connected_user_id = event
+        .data
+        .get("client_id")
         .and_then(|v| v.as_str())
         .filter(|s| !s.is_empty() && s.len() <= 64)
         .map(|s| s.to_string())
@@ -126,7 +149,10 @@ async fn handle_join(
         nickname: nickname.clone(),
         sender: tx.clone(),
     };
-    clients.write().await.insert(connected_user_id.clone(), client);
+    clients
+        .write()
+        .await
+        .insert(connected_user_id.clone(), client);
 
     if let Ok(welcome_str) = serde_json::to_string(&WsEvent {
         event: "welcome".to_string(),
@@ -184,8 +210,13 @@ async fn handle_chat_message(
 async fn broadcast_user_list(clients: &Clients) {
     let (users, senders): (Vec<UserInfo>, Vec<mpsc::UnboundedSender<Message>>) = {
         let clients_read = clients.read().await;
-        let users: Vec<UserInfo> = clients_read.values()
-            .map(|c| UserInfo { user_id: c.user_id.clone(), nickname: c.nickname.clone(), ip: String::new() })
+        let users: Vec<UserInfo> = clients_read
+            .values()
+            .map(|c| UserInfo {
+                user_id: c.user_id.clone(),
+                nickname: c.nickname.clone(),
+                ip: String::new(),
+            })
             .collect();
         let senders: Vec<_> = clients_read.values().map(|c| c.sender.clone()).collect();
         (users, senders)

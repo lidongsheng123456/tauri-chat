@@ -2,9 +2,9 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
+use super::ws_handler::broadcast_message;
 use crate::models::chat::*;
 use crate::utils::filename::sanitize_filename;
-use super::ws_handler::broadcast_message;
 
 /// 处理文件上传，保存到 chat_files 并广播消息
 pub async fn handle_upload(
@@ -42,7 +42,12 @@ pub async fn handle_upload(
     let saved_name = if ext.is_empty() {
         format!("{}_{}", Uuid::new_v4(), sanitize_filename(stem))
     } else {
-        format!("{}_{}.{}", Uuid::new_v4(), sanitize_filename(stem), sanitize_filename(&ext))
+        format!(
+            "{}_{}.{}",
+            Uuid::new_v4(),
+            sanitize_filename(stem),
+            sanitize_filename(&ext)
+        )
     };
 
     let file_path = format!("./chat_files/{}", saved_name);
@@ -92,15 +97,25 @@ pub async fn handle_force_download(
     }
 
     let file_path = format!("./chat_files/{}", file_name);
-    let data = tokio::fs::read(&file_path).await.map_err(|_| warp::reject::not_found())?;
+    let data = tokio::fs::read(&file_path)
+        .await
+        .map_err(|_| warp::reject::not_found())?;
 
-    let display_name = file_name.find('_').map(|i| &file_name[i + 1..]).unwrap_or(file_name);
+    let display_name = file_name
+        .find('_')
+        .map(|i| &file_name[i + 1..])
+        .unwrap_or(file_name);
     let encoded_name = urlencoding::encode(display_name);
 
     warp::http::Response::builder()
         .header("Content-Type", "application/octet-stream")
-        .header("Content-Disposition",
-            format!("attachment; filename=\"{}\"; filename*=UTF-8''{}", display_name, encoded_name))
+        .header(
+            "Content-Disposition",
+            format!(
+                "attachment; filename=\"{}\"; filename*=UTF-8''{}",
+                display_name, encoded_name
+            ),
+        )
         .body(data)
         .map_err(|_| warp::reject::not_found())
 }

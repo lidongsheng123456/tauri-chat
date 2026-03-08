@@ -7,7 +7,7 @@
     "api_url": "https://api.deepseek.com/chat/completions",
     "model": "deepseek-chat",
     "max_tokens": 4000,
-    "max_tool_rounds": 5
+    "max_tool_rounds": 10
   },
   "scraper": {
     "max_content_length": 50000,

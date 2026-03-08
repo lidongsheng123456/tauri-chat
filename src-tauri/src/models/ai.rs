@@ -29,7 +29,32 @@ pub struct AiChatRequest {
     pub tools: Option<Vec<ToolDefinition>>,
 }
 
-/// 单条聊天消息，支持文本、工具调用及工具结果
+/// 单次工具执行轨迹，用于前端展示。
+#[derive(Serialize, Clone, Debug)]
+pub struct ToolCallTrace {
+    pub tool_call_id: String,
+    pub tool_name: String,
+    pub arguments: serde_json::Value,
+    pub result: String,
+}
+
+/// 一轮工具调用轨迹（思考文本 + 工具执行列表）。
+#[derive(Serialize, Clone, Debug)]
+pub struct ToolRoundTrace {
+    pub round: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thinking: Option<String>,
+    pub tool_calls: Vec<ToolCallTrace>,
+}
+
+/// 返回给前端的完整对话结果。
+#[derive(Serialize, Clone, Debug)]
+pub struct ChatWithToolsResponse {
+    pub summary: String,
+    pub rounds: Vec<ToolRoundTrace>,
+}
+
+/// 单条聊天消息，支持文本、工具调用与工具结果。
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AiChatMessage {
     pub role: String,

@@ -1,4 +1,4 @@
-use crate::models::ai::AiChatMessage;
+use crate::models::ai::{AiChatMessage, ChatWithToolsResponse};
 use crate::services::ai::chat_service;
 
 /// 编译时通过环境变量 DEEPSEEK_API_KEY 嵌入的 API Key
@@ -18,6 +18,7 @@ fn read_api_key() -> Result<String, String> {
             return Ok(key.to_string());
         }
     }
+
     let entry = keyring::Entry::new("lanchat", "deepseek_api_key")
         .map_err(|e| format!("凭据管理器访问失败: {}", e))?;
     entry
@@ -33,7 +34,9 @@ pub fn has_api_key() -> bool {
 
 /// 调用 AI 聊天接口，API Key 从编译时嵌入或 OS 凭据管理器读取
 #[tauri::command]
-pub async fn chat_with_ai(messages: Vec<FrontendAiMessage>) -> Result<String, String> {
+pub async fn chat_with_ai(
+    messages: Vec<FrontendAiMessage>,
+) -> Result<ChatWithToolsResponse, String> {
     let api_key = read_api_key()?;
 
     let ai_messages: Vec<AiChatMessage> = messages

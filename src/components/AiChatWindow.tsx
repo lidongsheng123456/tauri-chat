@@ -1,4 +1,4 @@
-import { Bot, Globe, Trash2 } from "lucide-react";
+import { Bot, Globe, Trash2, Wrench } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { AiChatMessage } from "../hooks/useAiChat";
 import { MarkdownRenderer } from "./MarkdownRenderer";
@@ -12,7 +12,16 @@ interface AiChatWindowProps {
   onClearHistory: () => void;
 }
 
-/** AI 聊天窗口 - Markdown 渲染、加载态 */
+function formatUnknown(value: unknown): string {
+  if (typeof value === "string") return value;
+
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
 export function AiChatWindow({
   chatMessages,
   isLoading,
@@ -33,6 +42,7 @@ export function AiChatWindow({
     if (!input.trim() || isLoading) return;
     onSendMessage(input.trim());
     setInput("");
+
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
@@ -51,7 +61,7 @@ export function AiChatWindow({
     setInput(e.target.value);
     const el = e.target;
     el.style.height = "auto";
-    el.style.height = Math.min(el.scrollHeight, 120) + "px";
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
   };
 
   return (
@@ -64,16 +74,10 @@ export function AiChatWindow({
           </div>
           <div>
             <h3 className="chat-header__title">AI 助手</h3>
-            <p className="chat-header__subtitle">
-              DeepSeek Chat · 搜索 · 网页 · 工具
-            </p>
+            <p className="chat-header__subtitle">DeepSeek Chat · 搜索 · 网页 · 工具</p>
           </div>
         </div>
-        <button
-          onClick={onClearHistory}
-          className="chat-toolbar__btn"
-          title="清空对话"
-        >
+        <button onClick={onClearHistory} className="chat-toolbar__btn" title="清空对话">
           <Trash2 size={18} />
         </button>
       </div>
@@ -88,9 +92,9 @@ export function AiChatWindow({
               </div>
               <h4 className="chat-empty__title">AI 助手</h4>
               <p className="chat-empty__desc">
-                开始和 AI 对话吧！支持上下文连续对话。
+                开始和 AI 对话吧，支持上下文连续对话。
                 <br />
-                支持搜索互联网、浏览网页、提取图片、查时间、编解码、IP 查询等。
+                也支持搜索互联网、浏览网页、提取图片、查时间、编解码、IP 查询等。
               </p>
             </div>
           </div>
@@ -109,14 +113,19 @@ export function AiChatWindow({
               )}
 
               <div className={`message-content ${msg.role === "user" ? "message-content--mine" : "message-content--other"}`}>
-                {msg.role === "assistant" && (
-                  <div className="message-sender">AI 助手</div>
-                )}
+                {msg.role === "assistant" && <div className="message-sender">AI 助手</div>}
                 <div className={`message-bubble ${msg.role === "user" ? "message-bubble--mine" : "message-bubble--other"}`}>
                   {msg.loading ? (
                     <div className="ai-typing">
                       {msg.toolStatus ? (
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--color-text-secondary, #888)" }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            color: "var(--color-text-secondary, #888)",
+                          }}
+                        >
                           <Globe size={14} className="ai-tool-spin" />
                           <span>{msg.toolStatus}</span>
                         </div>
@@ -129,7 +138,40 @@ export function AiChatWindow({
                       )}
                     </div>
                   ) : msg.role === "assistant" ? (
-                    <MarkdownRenderer content={msg.content} />
+                    <>
+                      {msg.toolRounds && msg.toolRounds.length > 0 && (
+                        <div className="ai-trace">
+                          <div className="ai-trace__title">工具调用过程（最多 10 轮）</div>
+                          {msg.toolRounds.map((round) => (
+                            <div key={`${msg.id}-round-${round.round}`} className="ai-trace-round">
+                              <div className="ai-trace-round__index">第 {round.round} 轮思考</div>
+                              {round.thinking && <div className="ai-trace-round__thinking">{round.thinking}</div>}
+
+                              {round.tool_calls.map((tool) => (
+                                <details
+                                  key={`${msg.id}-${round.round}-${tool.tool_call_id}`}
+                                  className="ai-trace-tool"
+                                  open
+                                >
+                                  <summary className="ai-trace-tool__summary">
+                                    <Wrench size={12} />
+                                    <span>{tool.tool_name}</span>
+                                  </summary>
+                                  <div className="ai-trace-tool__body">
+                                    <div className="ai-trace-tool__label">参数</div>
+                                    <pre className="ai-trace-tool__block">{formatUnknown(tool.arguments)}</pre>
+                                    <div className="ai-trace-tool__label">结果</div>
+                                    <pre className="ai-trace-tool__block">{tool.result}</pre>
+                                  </div>
+                                </details>
+                              ))}
+                            </div>
+                          ))}
+                          <div className="ai-trace__summary">最终总结</div>
+                        </div>
+                      )}
+                      <MarkdownRenderer content={msg.content} />
+                    </>
                   ) : (
                     <div className="message-text message-text--mine" style={{ whiteSpace: "pre-wrap" }}>
                       {msg.content}
@@ -166,16 +208,12 @@ export function AiChatWindow({
               value={input}
               onChange={handleTextareaInput}
               onKeyDown={handleKeyDown}
-              placeholder="输入消息，Enter 发送... 支持搜索、浏览网页、查时间等"
+              placeholder="输入消息，Enter 发送。支持搜索、网页浏览、文件工具调用。"
               className="chat-textarea"
             />
             <div className="chat-send-row">
-              <button
-                onClick={handleSend}
-                disabled={!input.trim() || isLoading}
-                className="chat-send-btn"
-              >
-                {isLoading ? (toolStatus ? "浏览中..." : "思考中...") : "发送"}
+              <button onClick={handleSend} disabled={!input.trim() || isLoading} className="chat-send-btn">
+                {isLoading ? (toolStatus ? "执行工具中..." : "思考中...") : "发送"}
               </button>
             </div>
           </div>

@@ -47,14 +47,25 @@ pub struct JsonRpcError {
 impl JsonRpcResponse {
     /// 构造成功响应
     fn success(id: Option<Value>, result: Value) -> Self {
-        Self { jsonrpc: "2.0".to_string(), id, result: Some(result), error: None }
+        Self {
+            jsonrpc: "2.0".to_string(),
+            id,
+            result: Some(result),
+            error: None,
+        }
     }
 
     /// 构造错误响应
     fn error(id: Option<Value>, code: i32, message: &str) -> Self {
         Self {
-            jsonrpc: "2.0".to_string(), id, result: None,
-            error: Some(JsonRpcError { code, message: message.to_string(), data: None }),
+            jsonrpc: "2.0".to_string(),
+            id,
+            result: None,
+            error: Some(JsonRpcError {
+                code,
+                message: message.to_string(),
+                data: None,
+            }),
         }
     }
 }
@@ -62,31 +73,42 @@ impl JsonRpcResponse {
 /// 处理 MCP JSON-RPC 请求（initialize、tools/list、tools/call 等）
 async fn handle_rpc(req: JsonRpcRequest, _sse_tx: broadcast::Sender<String>) -> JsonRpcResponse {
     match req.method.as_str() {
-        "initialize" => JsonRpcResponse::success(req.id, serde_json::json!({
-            "protocolVersion": MCP_PROTOCOL_VERSION,
-            "capabilities": { "tools": { "listChanged": false } },
-            "serverInfo": { "name": MCP_SERVER_NAME, "version": MCP_SERVER_VERSION }
-        })),
+        "initialize" => JsonRpcResponse::success(
+            req.id,
+            serde_json::json!({
+                "protocolVersion": MCP_PROTOCOL_VERSION,
+                "capabilities": { "tools": { "listChanged": false } },
+                "serverInfo": { "name": MCP_SERVER_NAME, "version": MCP_SERVER_VERSION }
+            }),
+        ),
 
         "notifications/initialized" => JsonRpcResponse::success(req.id, serde_json::json!({})),
 
-        "tools/list" => JsonRpcResponse::success(req.id, serde_json::json!({
-            "tools": tool_registry::build_mcp_tool_list()
-        })),
+        "tools/list" => JsonRpcResponse::success(
+            req.id,
+            serde_json::json!({
+                "tools": tool_registry::build_mcp_tool_list()
+            }),
+        ),
 
         "tools/call" => {
             let params = req.params.unwrap_or(Value::Null);
             let tool_name = params.get("name").and_then(|v| v.as_str()).unwrap_or("");
-            let arguments = params.get("arguments").cloned()
+            let arguments = params
+                .get("arguments")
+                .cloned()
                 .unwrap_or(Value::Object(serde_json::Map::new()));
 
             let result_text = tool_registry::execute_tool(tool_name, arguments).await;
             let is_error = result_text.contains("失败") || result_text.starts_with("未知工具");
 
-            JsonRpcResponse::success(req.id, serde_json::json!({
-                "content": [{ "type": "text", "text": result_text }],
-                "isError": is_error
-            }))
+            JsonRpcResponse::success(
+                req.id,
+                serde_json::json!({
+                    "content": [{ "type": "text", "text": result_text }],
+                    "isError": is_error
+                }),
+            )
         }
 
         _ => JsonRpcResponse::error(req.id, -32601, &format!("Method not found: {}", req.method)),
@@ -106,10 +128,12 @@ pub async fn start_mcp_server(port: u16) {
         .and(warp::post())
         .and(warp::body::json::<JsonRpcRequest>())
         .and(sse_tx_filter.clone())
-        .and_then(|req: JsonRpcRequest, sse_tx: broadcast::Sender<String>| async move {
-            let response = handle_rpc(req, sse_tx).await;
-            Ok::<_, warp::Rejection>(warp::reply::json(&response))
-        });
+        .and_then(
+            |req: JsonRpcRequest, sse_tx: broadcast::Sender<String>| async move {
+                let response = handle_rpc(req, sse_tx).await;
+                Ok::<_, warp::Rejection>(warp::reply::json(&response))
+            },
+        );
 
     let sse_route = warp::path("mcp")
         .and(warp::path("sse"))
@@ -117,10 +141,12 @@ pub async fn start_mcp_server(port: u16) {
         .and(sse_tx_filter)
         .map(|sse_tx: broadcast::Sender<String>| {
             let rx = sse_tx.subscribe();
-            let stream = tokio_stream::wrappers::BroadcastStream::new(rx)
-                .filter_map(|result| async {
+            let stream =
+                tokio_stream::wrappers::BroadcastStream::new(rx).filter_map(|result| async {
                     match result {
-                        Ok(data) => Some(Ok::<_, warp::Error>(warp::sse::Event::default().data(data))),
+                        Ok(data) => {
+                            Some(Ok::<_, warp::Error>(warp::sse::Event::default().data(data)))
+                        }
                         Err(_) => None,
                     }
                 });
