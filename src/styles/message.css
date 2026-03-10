@@ -1,320 +1,285 @@
-/* Message Bubble */
+/* 消息气泡 */
 .message-row {
-  display: flex;
-  margin-bottom: 24px;
+    display: flex;
+    margin-bottom: 24px;
 }
 
 .message-row--mine {
-  justify-content: flex-end;
+    justify-content: flex-end;
 }
 
 .message-row--other {
-  justify-content: flex-start;
+    justify-content: flex-start;
 }
 
 .message-avatar {
-  position: relative;
-  flex-shrink: 0;
-  margin-top: 4px;
+    position: relative;
+    flex-shrink: 0;
+    margin-top: 4px;
 }
 
 .message-avatar--left {
-  margin-right: 14px;
+    margin-right: 14px;
 }
 
 .message-avatar--right {
-  margin-left: 14px;
+    margin-left: 14px;
 }
 
 .message-content {
-  max-width: 70%;
-  display: flex;
-  flex-direction: column;
+    max-width: 70%;
+    display: flex;
+    flex-direction: column;
 }
 
 .message-content--mine {
-  align-items: flex-end;
+    align-items: flex-end;
 }
 
 .message-content--other {
-  align-items: flex-start;
+    align-items: flex-start;
 }
 
 .message-sender {
-  font-size: 12px;
-  color: var(--text-placeholder);
-  font-weight: 500;
-  margin-bottom: 6px;
-  margin-left: 4px;
-  letter-spacing: 0.02em;
+    font-size: 12px;
+    color: var(--text-placeholder);
+    font-weight: 500;
+    margin-bottom: 6px;
+    margin-left: 4px;
+    letter-spacing: 0.02em;
 }
 
 .message-bubble {
-  position: relative;
-  padding: 12px 18px;
-  word-break: break-word;
+    position: relative;
+    padding: 12px 18px;
+    word-break: break-word;
 }
 
 .message-bubble--mine {
-  background: linear-gradient(135deg, #07c160, #12a858);
-  box-shadow: 0 4px 16px rgba(7, 193, 96, 0.2);
-  border-radius: var(--radius-lg) 4px var(--radius-lg) var(--radius-lg);
-  color: white;
+    background: linear-gradient(135deg, #07c160, #12a858);
+    box-shadow: 0 4px 16px rgba(7, 193, 96, 0.2);
+    border-radius: var(--radius-lg) 4px var(--radius-lg) var(--radius-lg);
+    color: white;
 }
 
 .message-bubble--other {
-  background: var(--bg-primary);
-  border: 1px solid rgba(0, 0, 0, 0.04);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
-  border-radius: 4px var(--radius-lg) var(--radius-lg) var(--radius-lg);
-  color: var(--text-primary);
+    background: var(--bg-primary);
+    border: 1px solid rgba(0, 0, 0, 0.04);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+    border-radius: 4px var(--radius-lg) var(--radius-lg) var(--radius-lg);
+    color: var(--text-primary);
 }
 
-/* Message Text */
+/* 消息文字 */
 .message-text {
-  font-size: 15px;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  word-break: break-word;
+    font-size: 15px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
 }
 
 .message-text--mine {
-  color: white;
+    color: white;
 }
 
 .message-text--other {
-  color: var(--text-primary);
+    color: var(--text-primary);
 }
 
-/* Message Image / Video */
+/* 消息图片 / 视频 */
 .message-media {
-  max-width: 300px;
-  padding: 2px;
+    max-width: 300px;
+    padding: 2px;
 }
 
 .message-media img,
 .message-media video {
-  border-radius: var(--radius-md);
-  max-width: 100%;
-  display: block;
-  cursor: pointer;
-  transition: box-shadow var(--duration-normal);
+    border-radius: var(--radius-md);
+    max-width: 100%;
+    display: block;
+    cursor: pointer;
+    transition: box-shadow var(--duration-normal);
 }
 
 .message-media img:hover,
 .message-media video:hover {
-  box-shadow: var(--shadow-md);
+    box-shadow: var(--shadow-md);
 }
 
-/* File Card */
-.message-file {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  width: 260px;
-  padding: 4px;
+/* ── 文件卡片消息容器（替代旧版 .message-file） ─────────────────────────────── */
+
+.msg-filecard {
+    display: inline-block;
+    max-width: 280px;
+    width: 260px;
 }
 
-.message-file__icon {
-  width: 48px;
-  height: 48px;
-  flex-shrink: 0;
-  border-radius: var(--radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all var(--duration-normal);
+/* 发送方（自己）— 白色卡片，绿色强调边框 */
+.msg-filecard--mine .ant-file-card {
+    background: rgba(255, 255, 255, 0.97) !important;
+    border: 1px solid rgba(7, 193, 96, 0.25) !important;
+    border-radius: var(--radius-md) !important;
+    transition:
+        border-color 160ms ease,
+        box-shadow 160ms ease;
 }
 
-.message-file__icon--mine {
-  background: rgba(255, 255, 255, 0.2);
+.msg-filecard--mine .ant-file-card:hover {
+    border-color: rgba(7, 193, 96, 0.5) !important;
+    box-shadow: 0 4px 12px rgba(7, 193, 96, 0.14) !important;
 }
 
-.message-file__icon--mine:hover {
-  background: rgba(255, 255, 255, 0.3);
+.msg-filecard--mine .ant-file-card-name {
+    color: var(--text-primary) !important;
 }
 
-.message-file__icon--other {
-  background: var(--bg-secondary);
+/* 确保 FileCard 内部由 byte prop / description 渲染的文字在白色卡片上可见 */
+.msg-filecard .ant-file-card-desc,
+.msg-filecard .ant-file-card-description,
+.msg-filecard .ant-file-card-extra,
+.msg-filecard .ant-file-card-info,
+.msg-filecard .ant-file-card-size {
+    color: var(--text-muted) !important;
 }
 
-.message-file__icon--other:hover {
-  background: rgba(0, 0, 0, 0.05);
+/* 接收方（对方）— 标准卡片样式 */
+.msg-filecard--other .ant-file-card {
+    background: var(--bg-primary) !important;
+    border: 1px solid var(--border-light) !important;
+    border-radius: var(--radius-md) !important;
+    transition:
+        border-color 160ms ease,
+        box-shadow 160ms ease;
 }
 
-.message-file__info {
-  flex: 1;
-  min-width: 0;
-  padding-right: 4px;
+.msg-filecard--other .ant-file-card:hover {
+    border-color: rgba(0, 0, 0, 0.14) !important;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.07) !important;
 }
 
-.message-file__name {
-  font-size: 15px;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  letter-spacing: -0.01em;
+/* 遮罩层（非图片文件卡片悬浮时显示，用于触发下载） */
+.msg-filecard__mask {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.38);
+    border-radius: inherit;
+    transition: background 150ms ease;
 }
 
-.message-file__name--mine {
-  color: white;
+.msg-filecard__mask:hover {
+    background: rgba(0, 0, 0, 0.5);
 }
 
-.message-file__name--other {
-  color: var(--text-primary);
-}
-
-.message-file__size {
-  font-size: 12px;
-  margin-top: 2px;
-}
-
-.message-file__size--mine {
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.message-file__size--other {
-  color: var(--text-secondary);
-}
-
-.message-file__download {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-md);
-  border: none;
-  flex-shrink: 0;
-  cursor: pointer;
-  transition: all var(--duration-fast) var(--ease-out);
-}
-
-.message-file__download--mine {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-}
-
-.message-file__download--mine:hover {
-  background: rgba(255, 255, 255, 0.35);
-}
-
-.message-file__download--other {
-  background: rgba(0, 0, 0, 0.04);
-  color: var(--text-secondary);
-}
-
-.message-file__download--other:hover {
-  background: rgba(0, 0, 0, 0.08);
-  color: var(--accent);
-}
-
-/* Clickable Image */
+/* 可点击图片（点击放大预览） */
 .message-media__img--clickable {
-  cursor: zoom-in;
-  transition: opacity var(--duration-fast) var(--ease-out), box-shadow var(--duration-normal);
+    cursor: zoom-in;
+    transition:
+        opacity var(--duration-fast) var(--ease-out),
+        box-shadow var(--duration-normal);
 }
 
 .message-media__img--clickable:hover {
-  opacity: 0.92;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    opacity: 0.92;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
 }
 
-/* Image Preview Lightbox */
+/* 图片全屏预览灯箱 */
 .image-preview-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  background: rgba(0, 0, 0, 0.85);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  animation: preview-fade-in 0.2s ease-out;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    animation: preview-fade-in 0.2s ease-out;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
 }
 
 @keyframes preview-fade-in {
-  from {
-    opacity: 0;
-  }
+    from {
+        opacity: 0;
+    }
 
-  to {
-    opacity: 1;
-  }
+    to {
+        opacity: 1;
+    }
 }
 
 .image-preview-toolbar {
-  position: absolute;
-  top: 16px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 8px;
-  background: rgba(0, 0, 0, 0.5);
-  border-radius: var(--radius-xl);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  z-index: 1001;
+    position: absolute;
+    top: 16px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 8px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: var(--radius-xl);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 1001;
 }
 
 .image-preview-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: none;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.8);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: all var(--duration-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.8);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--duration-fast);
 }
 
 .image-preview-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
-  color: white;
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
 }
 
 .image-preview-btn--close:hover {
-  background: rgba(220, 38, 38, 0.6);
-  color: white;
+    background: rgba(220, 38, 38, 0.6);
+    color: white;
 }
 
 .image-preview-scale {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
-  min-width: 40px;
-  text-align: center;
-  font-family: "SF Mono", "Fira Code", monospace;
-  user-select: none;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+    min-width: 40px;
+    text-align: center;
+    font-family: "SF Mono", "Fira Code", monospace;
+    user-select: none;
 }
 
 .image-preview-divider {
-  width: 1px;
-  height: 20px;
-  background: rgba(255, 255, 255, 0.15);
-  margin: 0 4px;
+    width: 1px;
+    height: 20px;
+    background: rgba(255, 255, 255, 0.15);
+    margin: 0 4px;
 }
 
 .image-preview-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
 }
 
 .image-preview-img {
-  max-width: 90vw;
-  max-height: 85vh;
-  object-fit: contain;
-  border-radius: var(--radius-md);
-  transition: transform 0.15s ease-out;
-  user-select: none;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+    max-width: 90vw;
+    max-height: 85vh;
+    object-fit: contain;
+    border-radius: var(--radius-md);
+    transition: transform 0.15s ease-out;
+    user-select: none;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
 }

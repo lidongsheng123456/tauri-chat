@@ -1,353 +1,362 @@
 /* ============================================
-   LAN Chat — CSS Design System: Base
-   Variables · Reset · Keyframes · Utilities
+   LAN Chat — CSS 设计系统：基础层
+   变量 · 重置 · 关键帧动画 · 工具类
    ============================================ */
 
 :root {
-  --accent: #07c160;
-  --accent-hover: #06ad56;
-  --accent-light: rgba(7, 193, 96, 0.1);
-  --accent-glow: rgba(7, 193, 96, 0.25);
-  --bg-primary: #ffffff;
-  --bg-secondary: #f5f5f7;
-  --bg-tertiary: #fafafa;
-  --bg-sidebar: rgba(245, 245, 247, 0.92);
-  --text-primary: #1d1d1f;
-  --text-secondary: #6e6e73;
-  --text-muted: #86868b;
-  --text-placeholder: #aeaeb2;
-  --border-light: rgba(0, 0, 0, 0.06);
-  --border-medium: rgba(0, 0, 0, 0.1);
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.08);
-  --shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.12);
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
-  --radius-2xl: 24px;
-  --radius-full: 9999px;
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --duration-fast: 200ms;
-  --duration-normal: 300ms;
-  --danger: #e53e3e;
+    --accent: #07c160;
+    --accent-hover: #06ad56;
+    --accent-light: rgba(7, 193, 96, 0.1);
+    --accent-glow: rgba(7, 193, 96, 0.25);
+    --bg-primary: #ffffff;
+    --bg-secondary: #f5f5f7;
+    --bg-tertiary: #fafafa;
+    --bg-sidebar: rgba(245, 245, 247, 0.92);
+    --text-primary: #1d1d1f;
+    --text-secondary: #6e6e73;
+    --text-muted: #86868b;
+    --text-placeholder: #aeaeb2;
+    --border-light: rgba(0, 0, 0, 0.06);
+    --border-medium: rgba(0, 0, 0, 0.1);
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.08);
+    --shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.12);
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 20px;
+    --radius-2xl: 24px;
+    --radius-full: 9999px;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --duration-fast: 200ms;
+    --duration-normal: 300ms;
+    --danger: #e53e3e;
 }
 
 *,
 *::before,
 *::after {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
 html,
 body,
 #root {
-  height: 100%;
-  width: 100%;
-  overflow: hidden;
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "Inter", "Noto Sans SC", sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-  font-size: 14px;
-  line-height: 1.5;
+    font-family:
+        -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
+        "Inter", "Noto Sans SC", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-size: 14px;
+    line-height: 1.5;
 }
 
 button {
-  cursor: pointer;
-  font: inherit;
+    cursor: pointer;
+    font: inherit;
 }
 
 input,
 textarea {
-  font: inherit;
+    font: inherit;
 }
 
 a {
-  text-decoration: none;
-  color: inherit;
+    text-decoration: none;
+    color: inherit;
 }
 
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+    width: 6px;
+    height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+    background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.12);
-  border-radius: 10px;
+    background: rgba(0, 0, 0, 0.12);
+    border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.25);
+    background: rgba(0, 0, 0, 0.25);
 }
 
 @keyframes fade-in {
-  from {
-    opacity: 0;
-  }
+    from {
+        opacity: 0;
+    }
 
-  to {
-    opacity: 1;
-  }
+    to {
+        opacity: 1;
+    }
 }
 
 @keyframes slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
 
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 @keyframes scale-in {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
 
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 @keyframes aurora {
-  0% {
-    background-position: 0% 50%;
-  }
+    0% {
+        background-position: 0% 50%;
+    }
 
-  50% {
-    background-position: 100% 50%;
-  }
+    50% {
+        background-position: 100% 50%;
+    }
 
-  100% {
-    background-position: 0% 50%;
-  }
+    100% {
+        background-position: 0% 50%;
+    }
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .animate-fade-in {
-  animation: fade-in 0.3s var(--ease-out) both;
+    animation: fade-in 0.3s var(--ease-out) both;
 }
 
 .animate-slide-up {
-  animation: slide-up 0.4s var(--ease-out) both;
+    animation: slide-up 0.4s var(--ease-out) both;
 }
 
 .animate-scale-in {
-  animation: scale-in 0.4s var(--ease-out) both;
+    animation: scale-in 0.4s var(--ease-out) both;
 }
 
 .animate-aurora {
-  background-size: 200% 200%;
-  animation: aurora 15s ease infinite;
+    background-size: 200% 200%;
+    animation: aurora 15s ease infinite;
 }
 
 .animate-spin {
-  animation: spin 1s linear infinite;
+    animation: spin 1s linear infinite;
 }
 
 .sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }
 
 .hidden {
-  display: none;
+    display: none;
 }
 
 .app-layout {
-  display: flex;
-  height: 100%;
-  width: 100%;
-  overflow: hidden;
-  background: var(--bg-secondary);
+    display: flex;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    background: var(--bg-secondary);
 }
 
-/* Reusable form controls */
+/* 通用表单控件 */
 .form-input {
-  width: 100%;
-  padding: 14px 16px;
-  background: rgba(245, 245, 247, 0.5);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: var(--radius-md);
-  font-size: 15px;
-  color: var(--text-primary);
-  outline: none;
-  transition: all var(--duration-normal) var(--ease-out);
+    width: 100%;
+    padding: 14px 16px;
+    background: rgba(245, 245, 247, 0.5);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: var(--radius-md);
+    font-size: 15px;
+    color: var(--text-primary);
+    outline: none;
+    transition: all var(--duration-normal) var(--ease-out);
 }
 
 .form-input::placeholder {
-  color: var(--text-placeholder);
+    color: var(--text-placeholder);
 }
 
 .form-input:hover {
-  background: var(--bg-secondary);
+    background: var(--bg-secondary);
 }
 
 .form-input:focus {
-  background: var(--bg-primary);
-  border-color: var(--accent);
-  box-shadow: 0 0 0 4px var(--accent-light);
+    background: var(--bg-primary);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px var(--accent-light);
 }
 
 .form-input--mono {
-  font-family: "SF Mono", "Fira Code", monospace;
+    font-family: "SF Mono", "Fira Code", monospace;
 }
 
 .segmented-control {
-  display: flex;
-  padding: 4px;
-  background: rgba(0, 0, 0, 0.04);
-  border-radius: var(--radius-md);
+    display: flex;
+    padding: 4px;
+    background: rgba(0, 0, 0, 0.04);
+    border-radius: var(--radius-md);
 }
 
 .segmented-btn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 10px 0;
-  border-radius: var(--radius-sm);
-  font-size: 14px;
-  font-weight: 500;
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  transition: all var(--duration-normal) var(--ease-out);
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 0;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    transition: all var(--duration-normal) var(--ease-out);
 }
 
 .segmented-btn:hover {
-  color: var(--text-primary);
+    color: var(--text-primary);
 }
 
 .segmented-btn--active {
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
-/* Avatar palette */
+/* 头像色板 */
+/* 头像基础样式 */
 .avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  font-size: 16px;
-  font-weight: 500;
-  border: 1px solid rgba(255, 255, 255, 0.5);
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 16px;
+    font-weight: 500;
+    border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
+/* 群聊头像 */
 .avatar--group {
-  background: linear-gradient(135deg, #07c160, #34e89e);
-  color: white;
-  box-shadow: 0 2px 8px rgba(7, 193, 96, 0.25);
+    background: linear-gradient(135deg, #07c160, #34e89e);
+    color: white;
+    box-shadow: 0 2px 8px rgba(7, 193, 96, 0.25);
 }
 
+/* 小尺寸头像（40×40） */
 .avatar--sm {
-  width: 40px;
-  height: 40px;
+    width: 40px;
+    height: 40px;
 }
 
+/* 自己的头像（蓝色） */
 .avatar--me {
-  background: linear-gradient(135deg, #60a5fa, #3b82f6);
-  color: white;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+    background: linear-gradient(135deg, #60a5fa, #3b82f6);
+    color: white;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
+/* AI 机器人头像（蓝色渐变） */
 .avatar--bot {
-  background: linear-gradient(135deg, #a78bfa, #7c3aed);
-  color: white;
-  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+    background: linear-gradient(135deg, #60a5fa, #2563eb);
+    color: white;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.28);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
+/* 用户头像随机色（按昵称哈希分配） */
 .avatar-color-0 {
-  background: linear-gradient(135deg, #ff9a9e, #fecfef);
-  color: #6b3a3d;
+    background: linear-gradient(135deg, #ff9a9e, #fecfef);
+    color: #6b3a3d;
 }
 
 .avatar-color-1 {
-  background: linear-gradient(135deg, #a18cd1, #fbc2eb);
-  color: #4a3560;
+    background: linear-gradient(135deg, #a18cd1, #fbc2eb);
+    color: #4a3560;
 }
 
 .avatar-color-2 {
-  background: linear-gradient(135deg, #84fab0, #8fd3f4);
-  color: #2d5f4a;
+    background: linear-gradient(135deg, #84fab0, #8fd3f4);
+    color: #2d5f4a;
 }
 
 .avatar-color-3 {
-  background: linear-gradient(135deg, #ffecd2, #fcb69f);
-  color: #6b4226;
+    background: linear-gradient(135deg, #ffecd2, #fcb69f);
+    color: #6b4226;
 }
 
 .avatar-color-4 {
-  background: linear-gradient(135deg, #cfd9df, #e2ebf0);
-  color: #4a5568;
+    background: linear-gradient(135deg, #cfd9df, #e2ebf0);
+    color: #4a5568;
 }
 
 .avatar-color-5 {
-  background: linear-gradient(135deg, #fbc2eb, #a6c1ee);
-  color: #4a3560;
+    background: linear-gradient(135deg, #fbc2eb, #a6c1ee);
+    color: #4a3560;
 }
 
 .avatar-color-6 {
-  background: linear-gradient(135deg, #fdcbf1, #e6dee9);
-  color: #6b3a5d;
+    background: linear-gradient(135deg, #fdcbf1, #e6dee9);
+    color: #6b3a5d;
 }
 
+/* 工具类：相对定位 */
 .pos-relative {
-  position: relative;
+    position: relative;
 }
 
+/* 无障碍：尊重用户的"减少动效"系统偏好，关闭所有动画 */
 @media (prefers-reduced-motion: reduce) {
+    .animate-fade-in,
+    .animate-slide-up,
+    .animate-scale-in,
+    .animate-aurora {
+        animation: none !important;
+    }
 
-  .animate-fade-in,
-  .animate-slide-up,
-  .animate-scale-in,
-  .animate-aurora {
-    animation: none !important;
-  }
-
-  * {
-    transition-duration: 0.01ms !important;
-  }
+    * {
+        transition-duration: 0.01ms !important;
+    }
 }
