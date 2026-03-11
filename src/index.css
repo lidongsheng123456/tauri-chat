@@ -1,11 +1,27 @@
-/* LAN Chat — CSS Entry Point
-   All styles are modularized under /styles/ */
-@import './styles/base.css';
-@import './styles/login.css';
-@import './styles/sidebar.css';
-@import './styles/chat.css';
-@import './styles/chat-input.css';
-@import './styles/message.css';
-@import './styles/ai.css';
-@import './styles/markdown.css';
-@import './styles/transfer.css';
+/*
+ * index.css — 样式入口文件
+ *
+ * 统一引入所有模块化的 CSS 样式子文件。
+ * 样式按功能职责拆分到 /styles/ 目录下的各子文件中，
+ * 本文件仅作为汇总入口，不直接定义任何样式规则。
+ *
+ * 子模块说明：
+ *   base.css       — CSS 变量、全局重置与基础元素样式
+ *   login.css      — 登录页布局与表单样式
+ *   sidebar.css    — 侧边栏（用户列表）布局与交互样式
+ *   chat.css       — 主聊天区域布局样式
+ *   chat-input.css — 底部输入框与工具栏样式
+ *   message.css    — 消息气泡与消息列表样式
+ *   ai.css         — AI 对话窗口与工具调用面板样式
+ *   markdown.css   — Markdown 渲染内容排版样式
+ *   transfer.css   — 文件传输进度指示器样式
+ */
+@import "./styles/base.css";
+@import "./styles/login.css";
+@import "./styles/sidebar.css";
+@import "./styles/chat.css";
+@import "./styles/chat-input.css";
+@import "./styles/message.css";
+@import "./styles/ai.css";
+@import "./styles/markdown.css";
+@import "./styles/transfer.css";

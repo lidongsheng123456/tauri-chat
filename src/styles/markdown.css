@@ -1,17 +1,36 @@
+/*
+ * markdown.css — AI 消息 Markdown 渲染排版样式
+ *
+ * 覆盖 MarkdownRenderer 组件输出的所有 HTML 元素的字体、间距与颜色，
+ * 包括标题层级、段落、有序/无序列表、引用块、分割线、超链接、
+ * 表格、行内代码、代码块（含顶部工具栏与复制按钮）及 Mermaid 图表。
+ *
+ * 代码高亮主题：Catppuccin Mocha（深色），通过 .hljs-* 选择器适配 highlight.js。
+ *
+ * 主要选择器：
+ *   .md-content         — Markdown 渲染根容器，统一字体大小（14px）与行高（1.7）
+ *   .md-inline-code     — 行内代码片段（粉色文字，圆角浅灰背景）
+ *   .md-code-block      — 代码块外层容器（深色主题 #1e1e2e，含圆角与阴影）
+ *   .md-code-header     — 代码块顶部工具栏（语言标签 + 一键复制按钮）
+ *   .md-code-copy       — 复制按钮（含悬浮高亮状态）
+ *   .md-pre             — 代码块预格式化文本区域（等宽字体，横向可滚动）
+ *   .hljs-*             — highlight.js Catppuccin Mocha 语法高亮色彩映射
+ */
+
 /* Markdown Renderer (AI chat messages) */
 .md-content {
-  font-size: 14px;
-  line-height: 1.7;
-  color: var(--text-primary);
-  word-break: break-word;
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text-primary);
+    word-break: break-word;
 }
 
-.md-content>*:first-child {
-  margin-top: 0;
+.md-content > *:first-child {
+    margin-top: 0;
 }
 
-.md-content>*:last-child {
-  margin-bottom: 0;
+.md-content > *:last-child {
+    margin-bottom: 0;
 }
 
 .md-content h1,
@@ -20,250 +39,254 @@
 .md-content h4,
 .md-content h5,
 .md-content h6 {
-  font-weight: 600;
-  line-height: 1.4;
-  margin: 16px 0 8px;
-  color: var(--text-primary);
+    font-weight: 600;
+    line-height: 1.4;
+    margin: 16px 0 8px;
+    color: var(--text-primary);
 }
 
 .md-content h1 {
-  font-size: 1.4em;
+    font-size: 1.4em;
 }
 
 .md-content h2 {
-  font-size: 1.25em;
+    font-size: 1.25em;
 }
 
 .md-content h3 {
-  font-size: 1.1em;
+    font-size: 1.1em;
 }
 
 .md-content h4 {
-  font-size: 1em;
+    font-size: 1em;
 }
 
 .md-content p {
-  margin: 8px 0;
+    margin: 8px 0;
 }
 
 .md-content ul,
 .md-content ol {
-  margin: 8px 0;
-  padding-left: 24px;
+    margin: 8px 0;
+    padding-left: 24px;
 }
 
 .md-content li {
-  margin: 4px 0;
+    margin: 4px 0;
 }
 
-.md-content li>ul,
-.md-content li>ol {
-  margin: 2px 0;
+.md-content li > ul,
+.md-content li > ol {
+    margin: 2px 0;
 }
 
 .md-content blockquote {
-  margin: 10px 0;
-  padding: 6px 14px;
-  border-left: 3px solid var(--accent);
-  background: rgba(0, 0, 0, 0.03);
-  border-radius: 0 8px 8px 0;
-  color: var(--text-secondary);
+    margin: 10px 0;
+    padding: 6px 14px;
+    border-left: 3px solid var(--accent);
+    background: rgba(0, 0, 0, 0.03);
+    border-radius: 0 8px 8px 0;
+    color: var(--text-secondary);
 }
 
 .md-content blockquote p {
-  margin: 4px 0;
+    margin: 4px 0;
 }
 
 .md-content hr {
-  border: none;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
-  margin: 16px 0;
+    border: none;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    margin: 16px 0;
 }
 
 .md-content a {
-  color: var(--accent);
-  text-decoration: none;
-  border-bottom: 1px solid transparent;
-  transition: border-color var(--duration-fast) var(--ease-out);
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color var(--duration-fast) var(--ease-out);
 }
 
 .md-content a:hover {
-  border-bottom-color: var(--accent);
+    border-bottom-color: var(--accent);
 }
 
 .md-content strong {
-  font-weight: 600;
-  color: var(--text-primary);
+    font-weight: 600;
+    color: var(--text-primary);
 }
 
 .md-content img {
-  max-width: 100%;
-  border-radius: 8px;
-  margin: 8px 0;
+    max-width: 100%;
+    border-radius: 8px;
+    margin: 8px 0;
 }
 
 /* Inline code */
 .md-inline-code {
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
-  font-size: 0.88em;
-  padding: 2px 6px;
-  background: rgba(0, 0, 0, 0.06);
-  border-radius: 4px;
-  color: #d63384;
-  word-break: break-all;
+    font-family:
+        "SF Mono", "Fira Code", "Cascadia Code", "JetBrains Mono", Consolas,
+        monospace;
+    font-size: 0.88em;
+    padding: 2px 6px;
+    background: rgba(0, 0, 0, 0.06);
+    border-radius: 4px;
+    color: #d63384;
+    word-break: break-all;
 }
 
 /* Code block */
 .md-code-block {
-  margin: 12px 0;
-  border-radius: 10px;
-  overflow: hidden;
-  background: #1e1e2e;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    margin: 12px 0;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #1e1e2e;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .md-code-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 14px;
-  background: rgba(255, 255, 255, 0.06);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 14px;
+    background: rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .md-code-lang {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: rgba(255, 255, 255, 0.5);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgba(255, 255, 255, 0.5);
 }
 
 .md-code-copy {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border: none;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 4px;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 11px;
-  cursor: pointer;
-  transition: all var(--duration-fast) var(--ease-out);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border: none;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all var(--duration-fast) var(--ease-out);
 }
 
 .md-code-copy:hover {
-  background: rgba(255, 255, 255, 0.14);
-  color: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.14);
+    color: rgba(255, 255, 255, 0.9);
 }
 
 .md-pre {
-  margin: 0;
-  padding: 14px;
-  overflow-x: auto;
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
-  font-size: 13px;
-  line-height: 1.6;
-  color: #cdd6f4;
-  tab-size: 2;
+    margin: 0;
+    padding: 14px;
+    overflow-x: auto;
+    font-family:
+        "SF Mono", "Fira Code", "Cascadia Code", "JetBrains Mono", Consolas,
+        monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #cdd6f4;
+    tab-size: 2;
 }
 
 .md-pre code {
-  font-family: inherit;
-  background: none;
-  padding: 0;
+    font-family: inherit;
+    background: none;
+    padding: 0;
 }
 
 /* Tables */
 .md-content table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 12px 0;
-  font-size: 13px;
-  border-radius: 8px;
-  overflow: hidden;
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 13px;
+    border-radius: 8px;
+    overflow: hidden;
 }
 
 .md-content thead {
-  background: rgba(0, 0, 0, 0.04);
+    background: rgba(0, 0, 0, 0.04);
 }
 
 .md-content th {
-  font-weight: 600;
-  text-align: left;
-  padding: 8px 12px;
-  border-bottom: 2px solid rgba(0, 0, 0, 0.08);
-  color: var(--text-primary);
+    font-weight: 600;
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.08);
+    color: var(--text-primary);
 }
 
 .md-content td {
-  padding: 7px 12px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    padding: 7px 12px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .md-content tbody tr:hover {
-  background: rgba(0, 0, 0, 0.02);
+    background: rgba(0, 0, 0, 0.02);
 }
 
 /* highlight.js theme (Catppuccin) */
 .hljs-keyword,
 .hljs-selector-tag {
-  color: #cba6f7;
+    color: #cba6f7;
 }
 
 .hljs-string,
 .hljs-addition {
-  color: #a6e3a1;
+    color: #a6e3a1;
 }
 
 .hljs-number,
 .hljs-literal {
-  color: #fab387;
+    color: #fab387;
 }
 
 .hljs-comment,
 .hljs-deletion {
-  color: #6c7086;
-  font-style: italic;
+    color: #6c7086;
+    font-style: italic;
 }
 
 .hljs-title,
 .hljs-section,
 .hljs-function {
-  color: #89b4fa;
+    color: #89b4fa;
 }
 
 .hljs-built_in {
-  color: #f9e2af;
+    color: #f9e2af;
 }
 
 .hljs-attr,
 .hljs-attribute {
-  color: #89dceb;
+    color: #89dceb;
 }
 
 .hljs-type,
 .hljs-class {
-  color: #f9e2af;
+    color: #f9e2af;
 }
 
 .hljs-variable {
-  color: #cdd6f4;
+    color: #cdd6f4;
 }
 
 .hljs-regexp {
-  color: #f5c2e7;
+    color: #f5c2e7;
 }
 
 .hljs-symbol {
-  color: #f2cdcd;
+    color: #f2cdcd;
 }
 
 .hljs-meta {
-  color: #f38ba8;
+    color: #f38ba8;
 }
 
 .hljs-punctuation {
-  color: #bac2de;
+    color: #bac2de;
 }

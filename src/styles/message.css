@@ -1,3 +1,24 @@
+/*
+ * message.css — 消息气泡与媒体内容样式
+ *
+ * 覆盖聊天消息列表中消息行、发送/接收气泡、文本内容、
+ * 媒体消息（图片/视频）、文件卡片及图片全屏预览灯箱的布局与视觉样式。
+ *
+ * 主要选择器：
+ *   .message-row              — 单条消息行（含头像与气泡的 flex 布局）
+ *   .message-bubble           — 消息气泡（自己：绿色渐变；对方：白色卡片）
+ *   .message-text             — 消息纯文本，保留换行与自动换行
+ *   .message-media            — 图片/视频消息容器（含悬浮阴影过渡）
+ *   .msg-filecard             — 文件卡片消息容器，覆盖 antd FileCard 主题色
+ *   .msg-filecard--mine       — 发送方文件卡片（白色背景，绿色强调边框）
+ *   .msg-filecard--other      — 接收方文件卡片（标准背景与边框）
+ *   .msg-filecard__mask       — 文件卡片悬浮遮罩（触发下载操作）
+ *   .image-preview-overlay    — 图片全屏预览灯箱（fixed，含毛玻璃背景）
+ *   .image-preview-toolbar    — 灯箱顶部工具栏（缩放 + 旋转 + 关闭按钮）
+ *   .image-preview-img        — 预览大图（含平滑缩放过渡）
+ *   @keyframes preview-fade-in — 灯箱入场淡入动画
+ */
+
 /* 消息气泡 */
 .message-row {
     display: flex;

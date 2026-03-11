@@ -1,5 +1,5 @@
 /**
- * 文件图标工具函数
+ * fileIcon.ts — 文件图标工具函数
  *
  * 将文件扩展名映射到 FileCard 内置图标类型字符串。
  * 同时被 AiChatWindow（工具文件卡片）和 MessageBubble（聊天文件消息）引用，
@@ -62,7 +62,8 @@ const EXT_MAP: Record<string, string> = {
  * 根据文件名返回 FileCard 内置图标类型。
  * 未知扩展名时回退为 `"default"`。
  *
- * @param name - 完整文件名或路径（仅检查扩展名部分）
+ * @param {string} name - 完整文件名或路径（仅检查扩展名部分）。
+ * @returns {string} 对应的图标类型字符串，未知扩展名时返回 `"default"`。
  */
 export function getFileIconType(name: string): string {
     const ext = name.split(".").pop()?.toLowerCase() ?? "";

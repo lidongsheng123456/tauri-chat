@@ -4,7 +4,20 @@ use crate::services::file::tools as file_tools;
 use crate::services::web::{scraper as web_scraper, search as web_search};
 use serde_json::Value;
 
-/// 快捷创建工具定义
+/// 快捷构造一个 [`ToolDefinition`] 实例。
+///
+/// 将名称、描述与 JSON Schema 参数封装为符合 OpenAI Function Calling 规范的工具定义，
+/// 避免在 [`all_tools`] 中重复书写样板代码。
+///
+/// # Arguments
+///
+/// * `name`   - 工具的唯一注册名称，AI 模型调用时以此名称标识。
+/// * `desc`   - 对工具功能的自然语言描述，供 AI 模型判断何时调用该工具。
+/// * `params` - 工具参数的 JSON Schema 定义（`object` 类型）。
+///
+/// # Returns
+///
+/// * [`ToolDefinition`] - 填充好所有字段的工具定义实例。
 fn tool(name: &str, desc: &str, params: Value) -> ToolDefinition {
     ToolDefinition {
         tool_type: "function".to_string(),
@@ -16,12 +29,33 @@ fn tool(name: &str, desc: &str, params: Value) -> ToolDefinition {
     }
 }
 
-/// 单个工具的 JSON schema（name + description + inputSchema）
+/// 构造单个工具在 MCP `tools/list` 响应中使用的 JSON 对象。
+///
+/// MCP 协议要求的字段与 AI API 的 `ToolDefinition` 略有不同：
+/// 参数 schema 键名为 `inputSchema` 而非 `parameters`。
+///
+/// # Arguments
+///
+/// * `name`   - 工具的唯一注册名称。
+/// * `desc`   - 工具功能的自然语言描述。
+/// * `schema` - 工具参数的 JSON Schema，对应 MCP 规范中的 `inputSchema` 字段。
+///
+/// # Returns
+///
+/// * `serde_json::Value` - 符合 MCP `tools/list` 响应格式的工具 JSON 对象。
 fn mcp_tool(name: &str, desc: &str, schema: Value) -> Value {
     serde_json::json!({ "name": name, "description": desc, "inputSchema": schema })
 }
 
-/// 所有工具的基本信息 (name, description, parameters schema)
+/// 返回所有已注册工具的基本信息三元组列表。
+///
+/// 每个元素为 `(名称, 描述, 参数 JSON Schema)`，被 [`build_tool_definitions`] 和
+/// [`build_mcp_tool_list`] 共同引用，确保 AI 调用与 MCP 导出的工具集始终一致，
+/// 是整个系统工具注册的唯一来源（single source of truth）。
+///
+/// # Returns
+///
+/// * `Vec<(&'static str, &'static str, Value)>` - 所有工具的 `(名称, 描述, schema)` 列表。
 fn all_tools() -> Vec<(&'static str, &'static str, Value)> {
     vec![
         (
@@ -161,7 +195,14 @@ fn all_tools() -> Vec<(&'static str, &'static str, Value)> {
     ]
 }
 
-/// 构建 AI API 的工具定义列表
+/// 构建供 AI API 使用的工具定义列表。
+///
+/// 将 [`all_tools`] 返回的三元组转换为符合 OpenAI Function Calling 规范的
+/// [`ToolDefinition`] 实例列表，在每轮 AI 流式请求中作为 `tools` 字段传入。
+///
+/// # Returns
+///
+/// * `Vec<ToolDefinition>` - 所有已注册工具的完整定义列表。
 pub fn build_tool_definitions() -> Vec<ToolDefinition> {
     all_tools()
         .into_iter()
@@ -169,7 +210,14 @@ pub fn build_tool_definitions() -> Vec<ToolDefinition> {
         .collect()
 }
 
-/// 构建 MCP tools/list 返回的 JSON 数组
+/// 构建 MCP `tools/list` 响应中返回的工具 JSON 数组。
+///
+/// 与 [`build_tool_definitions`] 使用相同的 [`all_tools`] 数据源，
+/// 但输出格式遵循 MCP 规范（`inputSchema` 字段），供 MCP 客户端发现可用工具。
+///
+/// # Returns
+///
+/// * `Vec<serde_json::Value>` - 所有已注册工具的 MCP 格式 JSON 对象列表。
 pub fn build_mcp_tool_list() -> Vec<Value> {
     all_tools()
         .into_iter()
@@ -177,7 +225,20 @@ pub fn build_mcp_tool_list() -> Vec<Value> {
         .collect()
 }
 
-/// 统一工具执行调度（AI 和 MCP 共用）
+/// 按工具名称调度并执行对应的工具函数，返回结果字符串。
+///
+/// 作为 AI 调用与 MCP 调用的统一入口，保证两条调用路径使用相同的执行逻辑。
+/// 参数解析通过 [`dispatch`] 辅助函数完成，解析失败时返回包含错误信息的字符串，
+/// 确保调用链不中断，AI 模型可据此判断如何处理错误。
+///
+/// # Arguments
+///
+/// * `name` - 工具的注册名称，需与 [`all_tools`] 中的名称完全一致。
+/// * `args` - 工具调用参数，来源于 AI 模型生成的 JSON 对象或 MCP 请求的 `arguments` 字段。
+///
+/// # Returns
+///
+/// * `String` - 工具执行的结果文本；工具名称未知时返回 `"未知工具: <name>"`。
 pub async fn execute_tool(name: &str, args: Value) -> String {
     match name {
         "browse_website" => {
@@ -251,7 +312,25 @@ pub async fn execute_tool(name: &str, args: Value) -> String {
     }
 }
 
-/// 通用异步工具调度辅助
+/// 通用异步工具调度辅助函数：反序列化参数后调用工具执行闭包。
+///
+/// 将参数反序列化与工具调用解耦，统一处理解析失败的情况，
+/// 避免在 [`execute_tool`] 的每个分支中重复书写 `serde_json::from_value` + 错误处理。
+///
+/// # Type Parameters
+///
+/// * `A` - 工具参数结构体类型，需实现 [`serde::de::DeserializeOwned`]。
+/// * `F` - 返回 `Future<Output = String>` 的异步闭包类型。
+///
+/// # Arguments
+///
+/// * `args` - 需要反序列化为 `A` 的 JSON `Value`。
+/// * `f`    - 接收反序列化后的参数 `A`，返回工具执行结果字符串的异步闭包。
+///
+/// # Returns
+///
+/// * 参数解析成功时，返回闭包 `f` 的执行结果。
+/// * 参数解析失败时，返回 `"参数解析失败: <错误信息>"` 字符串。
 async fn dispatch<A, F>(args: Value, f: impl FnOnce(A) -> F) -> String
 where
     A: serde::de::DeserializeOwned,

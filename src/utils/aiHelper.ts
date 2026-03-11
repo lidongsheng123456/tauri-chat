@@ -15,8 +15,8 @@ import type { AiToolRoundTrace } from "../hooks/useAiChat";
  * 使用正则匹配关键词，优先级从上到下递减。
  * 无法匹配时返回 null（不显示状态提示）。
  *
- * @param content - 用户输入的原始消息文本
- * @returns 状态提示字符串，或 null
+ * @param {string} content - 用户输入的原始消息文本。
+ * @returns {string | null} 状态提示字符串，或 null（无法推断时）。
  */
 export function detectToolHint(content: string): string | null {
     const lower = content.toLowerCase();
@@ -59,17 +59,27 @@ export function detectToolHint(content: string): string | null {
 
 // ─── 工具结果解析 ─────────────────────────────────────────────────────────────
 
-/** 单条引用来源 */
+/**
+ * 单条引用来源，用于在 AI 回复下方展示"引用 N 个来源"列表。
+ */
 export interface SourceItem {
+    /** 来源的唯一标识，通常为 URL 字符串，用于去重与 React key。 */
     key: string;
+    /** 在"引用来源"列表中展示的可读标题文本。 */
     title: string;
+    /** 来源的原始链接地址（可选），点击后跳转至外部页面。 */
     url?: string;
 }
 
-/** 单条文件卡片 */
+/**
+ * 单条文件操作卡片，用于在 AI 回复下方展示工具所操作的文件。
+ */
 export interface FileCardItem {
+    /** 文件的显示名称，取路径最后一段，用于卡片标题展示。 */
     name: string;
+    /** 文件的完整路径，由工具调用参数中提取，用于悬停提示。 */
     path: string;
+    /** 触发此文件卡片的工具名称，如 `"read_file"` 或 `"write_file"`。 */
     tool: string;
 }
 
@@ -93,11 +103,11 @@ const FILE_TOOLS = new Set([
  * 从工具调用轮次中解析引用来源列表，用于在 AI 回复下方展示"引用 N 个来源"。
  *
  * 处理以下工具：
- *   - browse_website / fetch_url_raw / extract_webpage_images：直接取 url 参数
- *   - web_search：解析结果文本中 "### N. 标题" 与 "链接: https://..." 格式
+ *   - `browse_website` / `fetch_url_raw` / `extract_webpage_images`：直接取 `url` 参数。
+ *   - `web_search`：解析结果文本中 `"### N. 标题"` 与 `"链接: https://..."` 格式。
  *
- * @param toolRounds - AI 工具调用轮次列表
- * @returns 去重后的来源数组
+ * @param {AiToolRoundTrace[]} toolRounds - AI 工具调用轮次列表。
+ * @returns {SourceItem[]} 去重后的来源数组，顺序与工具调用顺序一致。
  */
 export function extractSources(toolRounds: AiToolRoundTrace[]): SourceItem[] {
     const sources: SourceItem[] = [];
@@ -149,12 +159,14 @@ export function extractSources(toolRounds: AiToolRoundTrace[]): SourceItem[] {
 /**
  * 从工具调用轮次中解析文件卡片列表，用于在 AI 回复下方展示操作过的文件。
  *
- * 覆盖工具：read_file / write_file / create_directory / delete_path / list_directory
+ * 覆盖工具：`read_file` / `write_file` / `create_directory` / `delete_path` / `list_directory`。
  *
- * @param toolRounds - AI 工具调用轮次列表
- * @returns 去重后的文件卡片数组
+ * @param {AiToolRoundTrace[]} toolRounds - AI 工具调用轮次列表。
+ * @returns {FileCardItem[]} 去重后的文件卡片数组，顺序与工具调用顺序一致。
  */
-export function extractFileCards(toolRounds: AiToolRoundTrace[]): FileCardItem[] {
+export function extractFileCards(
+    toolRounds: AiToolRoundTrace[],
+): FileCardItem[] {
     const files: FileCardItem[] = [];
     const seen = new Set<string>();
 

@@ -2,11 +2,40 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
-use super::ws_handler::broadcast_message;
+use super::ws_handler::{broadcast_message, store_message};
 use crate::models::chat::*;
 use crate::utils::filename::sanitize_filename;
 
-/// 处理文件上传，保存到 chat_files 并广播消息
+/// 处理客户端通过 HTTP POST `/upload` 端点上传的文件，保存到本地并广播消息。
+///
+/// 执行流程：
+/// 1. 对 `x-file-name` 请求头进行 URL 解码，还原原始文件名。
+/// 2. 校验 `x-msg-type` 是否为合法枚举值（`text` / `image` / `video` / `file`）。
+/// 3. 提取文件扩展名，生成 `<UUID>_<stem>.<ext>` 格式的唯一存储文件名，
+///    防止同名文件覆盖；文件名中的非法字符通过 [`sanitize_filename`] 清理。
+/// 4. 将文件字节写入 `./chat_files/<saved_name>`。
+/// 5. 构造 [`ChatMessage`] 并追加到内存历史，同时广播给相关客户端。
+/// 6. 返回 `{ "ok": true, "url": "/files/<saved_name>" }` JSON 响应。
+///
+/// # Arguments
+///
+/// * `body`      - 请求体原始字节，即文件的二进制内容。
+/// * `file_name` - `x-file-name` 请求头，URL 编码的原始文件名。
+/// * `from_id`   - `x-from-id` 请求头，上传方的用户 ID。
+/// * `from_name` - `x-from-name` 请求头，上传方的昵称。
+/// * `to_id`     - `x-to-id` 请求头，接收方的用户 ID；群聊时为 `"all"`。
+/// * `msg_type`  - `x-msg-type` 请求头，消息类型标识。
+/// * `clients`   - 当前所有在线客户端的共享映射表，用于广播消息。
+/// * `messages`  - 服务端内存中的消息历史共享列表。
+///
+/// # Returns
+///
+/// * `Ok(warp::reply::Json)` - 始终返回 JSON 响应体，成功时含 `url` 字段，失败时含 `error` 字段。
+///
+/// # Errors
+///
+/// * 若 `msg_type` 不合法，返回 `{"ok": false, "error": "invalid msg_type"}`。
+/// * 若文件写入磁盘失败，返回 `{"ok": false, "error": "file write failed"}`。
 pub async fn handle_upload(
     body: bytes::Bytes,
     file_name: String,
@@ -70,10 +99,7 @@ pub async fn handle_upload(
         timestamp: chrono::Utc::now().timestamp_millis(),
     };
 
-    {
-        let mut msgs = messages.lock().await;
-        msgs.push(msg.clone());
-    }
+    store_message(&messages, msg.clone()).await;
 
     if let Ok(event_str) = serde_json::to_string(&WsEvent {
         event: "message".to_string(),
@@ -87,7 +113,28 @@ pub async fn handle_upload(
     ))
 }
 
-/// 强制下载文件，设置 Content-Disposition 为 attachment
+/// 处理 `GET /download/<filename>` 请求，将文件以附件形式强制下载。
+///
+/// 与 `/files/*` 静态路由不同，此端点会设置 `Content-Disposition: attachment`
+/// 响应头，强制浏览器弹出"另存为"对话框，而非在浏览器内直接预览。
+/// 文件名采用 RFC 5987 的 `filename*=UTF-8''<encoded>` 格式，正确处理非 ASCII 文件名。
+///
+/// 出于安全考虑，`filename` 参数不得包含路径遍历字符（`..`、`/`、`\`），
+/// 违反此规则时直接返回 404，防止任意文件读取漏洞。
+///
+/// # Arguments
+///
+/// * `tail` - URL 路径尾部，即 `/download/` 之后的文件名部分（不含路径分隔符）。
+///
+/// # Returns
+///
+/// * `Ok(warp::http::Response<Vec<u8>>)` - 包含文件内容与下载响应头的 HTTP 响应。
+///
+/// # Errors
+///
+/// * 若 `filename` 包含 `..`、`/`、`\`，返回 404 拒绝访问。
+/// * 若目标文件不存在或读取失败，返回 404。
+/// * 若构造 HTTP 响应体失败（极少见），返回 404。
 pub async fn handle_force_download(
     tail: warp::path::Tail,
 ) -> Result<impl warp::Reply, warp::Rejection> {
@@ -101,6 +148,7 @@ pub async fn handle_force_download(
         .await
         .map_err(|_| warp::reject::not_found())?;
 
+    // 去除 UUID 前缀，将 "<uuid>_<original>" 还原为 "<original>" 用于展示
     let display_name = file_name
         .find('_')
         .map(|i| &file_name[i + 1..])

@@ -9,24 +9,44 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-/** 网络接口 */
+/**
+ * 网络接口信息，由父组件通过 Tauri Command `get_all_ips` 获取后传入。
+ */
 interface NetworkInterface {
+    /** 网络接口的操作系统名称，例如 `"WLAN"` 或 `"以太网"`。 */
     name: string;
+    /** 该接口绑定的 IPv4 地址，格式为点分十进制（如 `"192.168.1.100"`）。 */
     ip: string;
 }
 
-/** 登录页 Props */
+/**
+ * `LoginScreen` 组件的 Props。
+ */
 interface LoginScreenProps {
+    /**
+     * 用户点击提交按钮后的回调，携带最终确认的昵称与服务器 IP。
+     *
+     * @param {string} nickname  - 用户输入的昵称（已去除首尾空格）。
+     * @param {string} serverIp  - 创建房间模式下为所选网络接口的 IP；加入房间模式下为用户输入的服务器 IP。
+     */
     onLogin: (nickname: string, serverIp: string) => void;
+    /** 本机所有可用的非回环 IPv4 网络接口列表，由父组件异步加载后传入。 */
     networkInterfaces: NetworkInterface[];
+    /** 本机的操作系统主机名，用作昵称输入框的默认值。 */
     hostname: string;
 }
 
 /**
- * 登录界面组件 - 支持创建房间和加入房间两种模式
+ * 登录界面组件，支持「创建房间」（作为服务端）与「加入房间」（连接已有服务端）两种模式。
  *
- * 异步到达的 networkInterfaces 和 hostname 通过渲染时派生计算值（displayIp /
- * displayNickname）直接驱动 UI，避免在 useEffect 中调用 setState 产生级联渲染。
+ * 设计要点：
+ * - `networkInterfaces` 与 `hostname` 为异步到达的 Props，通过渲染时派生计算值
+ *   （`displayIp` / `displayNickname`）直接驱动 UI，避免在 `useEffect` 中调用
+ *   `setState` 产生级联渲染。
+ * - 下拉框展开时通过 `useEffect` 监听全局 `mousedown` 事件以实现「点击外部关闭」，
+ *   关闭时自动移除监听器，防止内存泄漏。
+ *
+ * @param {LoginScreenProps} props - 组件 Props，详见 `LoginScreenProps` 接口定义。
  */
 export function LoginScreen({
     onLogin,
@@ -68,6 +88,14 @@ export function LoginScreen({
             document.removeEventListener("mousedown", handleClickOutside);
     }, [showDropdown]);
 
+    /**
+     * 处理表单提交：校验昵称与 IP 均非空后调用 `onLogin` 回调。
+     *
+     * 使用派生值（`displayNickname` / `displayIp`）作为最终提交数据，
+     * 确保昵称默认值（主机名）与 IP 默认值（第一个接口）在未手动修改时也能正确提交。
+     *
+     * @param {React.FormEvent} e - 表单提交事件，调用 `preventDefault` 阻止页面刷新。
+     */
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         const nick = displayNickname.trim();

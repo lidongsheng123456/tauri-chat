@@ -1,7 +1,27 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// 安全校验路径：禁止路径遍历和系统关键目录访问
+/// 对目标路径进行安全校验，防止路径遍历攻击与系统关键目录访问。
+///
+/// 对于已存在的路径，调用 [`std::fs::canonicalize`] 解析为绝对路径后进行黑名单比对；
+/// 对于不存在的路径（如待创建的文件），解析其父目录的规范路径后再拼接文件名。
+///
+/// 黑名单包含以下系统目录（大小写不敏感）：
+/// `\windows\`、`\system32`、`/etc/`、`/usr/`、`/bin/`、`/sbin/`、`\program files`。
+///
+/// # Arguments
+///
+/// * `path` - 待校验的路径字符串（绝对或相对路径均可）。
+///
+/// # Returns
+///
+/// * `Ok(PathBuf)` - 校验通过后的规范化绝对路径。
+///
+/// # Errors
+///
+/// * 若路径解析（`canonicalize`）失败，返回包含系统错误信息的字符串。
+/// * 若父目录不存在，返回 `"父目录不存在"` 错误。
+/// * 若路径命中系统目录黑名单，返回 `"禁止访问系统目录: <匹配项>"` 错误。
 fn validate_path(path: &str) -> Result<PathBuf, String> {
     let p = PathBuf::from(path);
     let canonical = if p.exists() {
@@ -41,7 +61,20 @@ fn validate_path(path: &str) -> Result<PathBuf, String> {
     Ok(canonical)
 }
 
-/// 列出目录内容，返回文件和子目录清单
+/// 列出指定目录下的所有文件与子目录，按名称排序后格式化为可读文本。
+///
+/// 子目录排在文件之前，各自按字母序排列。
+/// 每条目录项以 `📁 <name>/` 格式显示，文件项以 `📄 <name> (<size>)` 格式显示。
+/// 输出末尾附有汇总行：`共 N 个文件夹, M 个文件`。
+///
+/// # Arguments
+///
+/// * `path` - 需要列出内容的目录绝对路径字符串。
+///
+/// # Returns
+///
+/// * `String` - 包含目录内容清单的多行格式化字符串；
+///   路径不合法、不存在或不是目录时返回包含错误原因的中文提示字符串。
 pub fn list_directory(path: &str) -> String {
     let dir = match validate_path(path) {
         Ok(p) => p,
@@ -97,7 +130,20 @@ pub fn list_directory(path: &str) -> String {
     output
 }
 
-/// 读取文件内容（文本），超长时截断
+/// 读取指定文件的文本内容，超过 10 万字符时自动截断并附加提示。
+///
+/// 文件内容以 Markdown 代码块格式包裹，代码块语言标识由文件扩展名决定（无扩展名时为空）。
+/// 适用于查看代码、配置文件等纯文本内容；二进制文件会因 UTF-8 解析失败而返回错误提示。
+///
+/// # Arguments
+///
+/// * `path` - 需要读取的文件绝对路径字符串。
+///
+/// # Returns
+///
+/// * `String` - 以 Markdown 代码块包裹的文件内容字符串；
+///   超长时截断并附加 `[内容已截断]` 提示；
+///   路径不合法、文件不存在或为二进制文件时返回包含错误原因的中文提示字符串。
 pub fn read_file(path: &str) -> String {
     let file_path = match validate_path(path) {
         Ok(p) => p,
@@ -135,7 +181,20 @@ pub fn read_file(path: &str) -> String {
     }
 }
 
-/// 写入文件内容（新建或覆盖）
+/// 将指定内容写入文件，文件不存在时自动创建，已存在时覆盖原有内容。
+///
+/// 若目标文件的父目录不存在，会尝试递归创建所有缺失的中间目录。
+/// 写入成功后根据文件是否为新建返回 `"已创建"` 或 `"已更新"` 的状态提示。
+///
+/// # Arguments
+///
+/// * `path`    - 写入目标文件的绝对路径字符串，文件不存在时自动创建。
+/// * `content` - 写入文件的完整文本内容，将覆盖原有内容（如存在）。
+///
+/// # Returns
+///
+/// * `String` - 成功时返回 `"✅ 文件已创建/已更新: <path> (<N> 字符)"` 格式的提示；
+///   路径不合法、父目录创建失败或磁盘写入失败时返回包含错误原因的中文提示字符串。
 pub fn write_file(path: &str, content: &str) -> String {
     let file_path = match validate_path(path) {
         Ok(p) => p,
@@ -165,7 +224,19 @@ pub fn write_file(path: &str, content: &str) -> String {
     }
 }
 
-/// 创建目录（支持递归创建）
+/// 创建指定目录，支持递归创建多级父目录。
+///
+/// 若目标目录已存在，直接返回 `⚠️ 目录已存在` 提示，不报错也不修改现有内容。
+///
+/// # Arguments
+///
+/// * `path` - 需要创建的目录绝对路径字符串，支持多级路径（如 `/a/b/c`）。
+///
+/// # Returns
+///
+/// * `String` - 成功时返回 `"✅ 目录已创建: <path>"` 提示；
+///   目录已存在时返回 `"⚠️ 目录已存在: <path>"` 提示；
+///   路径不合法或磁盘操作失败时返回包含错误原因的中文提示字符串。
 pub fn create_directory(path: &str) -> String {
     let dir_path = match validate_path(path) {
         Ok(p) => p,
@@ -182,7 +253,20 @@ pub fn create_directory(path: &str) -> String {
     }
 }
 
-/// 删除文件或目录
+/// 删除指定路径的文件或目录（目录将递归删除所有内容）。
+///
+/// 删除前会通过 [`validate_path`] 进行安全校验，防止误删系统关键目录。
+/// 此操作不可逆，请谨慎使用。
+///
+/// # Arguments
+///
+/// * `path` - 需要删除的文件或目录的绝对路径字符串；目录将递归删除其所有子项。
+///
+/// # Returns
+///
+/// * `String` - 成功时返回 `"✅ 文件/目录已删除: <path>"` 提示；
+///   路径不存在时返回 `"路径不存在: <path>"` 提示；
+///   路径不合法或删除操作失败时返回包含错误原因的中文提示字符串。
 pub fn delete_path(path: &str) -> String {
     let target = match validate_path(path) {
         Ok(p) => p,
@@ -206,7 +290,22 @@ pub fn delete_path(path: &str) -> String {
     }
 }
 
-/// 在目录中搜索文件名匹配关键词的文件（递归，最多 100 条）
+/// 在指定目录下递归搜索文件名包含关键词的文件与目录，最多返回 100 条结果。
+///
+/// 搜索不区分大小写，以关键词的小写形式与文件名的小写形式进行包含匹配。
+/// 以 `.` 开头的隐藏目录不会被递归搜索（但其自身名称若匹配仍会被收录）。
+/// 结果按发现顺序排列（深度优先），并附有序号、图标与文件大小信息。
+///
+/// # Arguments
+///
+/// * `dir`     - 执行递归搜索的根目录绝对路径字符串。
+/// * `keyword` - 文件名匹配关键词，不区分大小写。
+///
+/// # Returns
+///
+/// * `String` - 包含搜索结果列表的多行格式化字符串；
+///   未找到匹配项时返回 `"在 <dir> 中未找到匹配「keyword」的文件"` 提示；
+///   路径不合法或不是目录时返回包含错误原因的中文提示字符串。
 pub fn search_files(dir: &str, keyword: &str) -> String {
     let search_dir = match validate_path(dir) {
         Ok(p) => p,
@@ -253,7 +352,17 @@ pub fn search_files(dir: &str, keyword: &str) -> String {
     output
 }
 
-/// 递归搜索实现
+/// 递归搜索目录，将匹配关键词的路径追加到 `results`，达到 `max` 条时提前终止。
+///
+/// 采用深度优先遍历策略：先检查当前目录的直接子项，再递归进入子目录。
+/// 跳过以 `.` 开头的隐藏目录，避免搜索 `.git`、`.cargo` 等大型隐藏目录。
+///
+/// # Arguments
+///
+/// * `dir`     - 当前递归遍历的目录路径。
+/// * `keyword` - 已转为小写的搜索关键词，与文件名小写形式进行包含匹配。
+/// * `results` - 用于收集匹配结果的路径列表，由调用方传入并在递归中共享。
+/// * `max`     - 结果数量上限，达到此数量后所有递归调用立即返回。
 fn search_recursive(dir: &Path, keyword: &str, results: &mut Vec<PathBuf>, max: usize) {
     if results.len() >= max {
         return;
@@ -277,7 +386,18 @@ fn search_recursive(dir: &Path, keyword: &str, results: &mut Vec<PathBuf>, max: 
     }
 }
 
-/// 格式化文件大小
+/// 将字节数格式化为人类可读的文件大小字符串。
+///
+/// 使用 1024 进制转换，依次尝试 B、KB、MB、GB 四个量级，
+/// 选取最合适的单位并保留 1 位小数（GB 保留 2 位）。
+///
+/// # Arguments
+///
+/// * `bytes` - 文件的字节数。
+///
+/// # Returns
+///
+/// * `String` - 格式化后的文件大小字符串，例如 `"1.5 KB"`、`"2.0 MB"`。
 fn format_size(bytes: u64) -> String {
     if bytes < 1024 {
         return format!("{} B", bytes);

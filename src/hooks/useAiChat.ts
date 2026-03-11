@@ -14,42 +14,82 @@ import { useLocalStorage } from "./useLocalStorage";
 
 // ─── 类型定义 ─────────────────────────────────────────────────────────────────
 
-/** AI 对话单条消息（用于 API 请求上下文） */
+/**
+ * 发送给 AI API 的单条上下文消息，用于构造对话历史。
+ *
+ * 此接口仅在前端内部使用，不对外导出；发送至后端时会被序列化为 JSON 数组。
+ */
 interface AiMessage {
+    /** 消息角色，决定 AI 模型如何理解该条消息的来源与权重。 */
     role: "user" | "assistant" | "system";
+    /** 消息的纯文本内容。 */
     content: string;
 }
 
+/**
+ * 单次工具调用的完整执行轨迹，由后端序列化后随 `done` 事件一并发送至前端。
+ *
+ * 前端使用此数据在 `ThoughtProcess` 组件中渲染工具调用详情。
+ */
 export interface AiToolCallTrace {
+    /** 工具调用的唯一标识符，与 AI API 响应中的 `tool_call_id` 对应。 */
     tool_call_id: string;
+    /** 被调用工具的注册名称，例如 `"web_search"`、`"read_file"`。 */
     tool_name: string;
+    /** 工具调用时传入的参数，保留原始 JSON 结构以便前端渲染。 */
     arguments: unknown;
+    /** 工具执行后返回的结果文本（超长时后端已截断）。 */
     result: string;
 }
 
+/**
+ * 一轮工具调用的完整轨迹，包含模型的思考文本与本轮所有工具执行记录。
+ *
+ * 一次 AI 对话可能经历多轮工具调用，每轮对应一个 `AiToolRoundTrace`，
+ * 最终通过 `done` 事件的 `rounds` 字段批量传递至前端。
+ */
 export interface AiToolRoundTrace {
+    /** 轮次编号，从 1 开始递增。 */
     round: number;
+    /** 模型在决定调用工具前生成的思考文本，无思考内容时为 `null`。 */
     thinking?: string | null;
+    /** 本轮中所有工具调用的执行轨迹列表。 */
     tool_calls: AiToolCallTrace[];
 }
 
+/**
+ * AI 聊天窗口中的单条消息，用于前端渲染与本地持久化存储。
+ *
+ * 包含消息内容、加载状态与工具调用轨迹等 UI 展示所需的全部信息。
+ */
 export interface AiChatMessage {
+    /** 消息的唯一标识符，由 `crypto.randomUUID()` 生成，同时作为流式事件的会话 ID。 */
     id: string;
+    /** 消息角色，决定气泡的渲染样式与头像。 */
     role: "user" | "assistant";
+    /** 消息的文本内容；流式输出阶段会随 `token` 事件实时追加。 */
     content: string;
+    /** 消息创建或完成的 Unix 时间戳（毫秒）。 */
     timestamp: number;
+    /** 是否处于加载（等待/流式接收）状态，为 `true` 时渲染加载动画。 */
     loading?: boolean;
+    /** 当前正在执行的工具状态描述文本，用于在气泡内显示工具执行指示器。 */
     toolStatus?: string;
+    /** 本次对话所有工具调用轮次的轨迹，由 `done` 事件写入，用于渲染 `ThoughtProcess` 组件。 */
     toolRounds?: AiToolRoundTrace[];
 }
 
 /**
- * 后端通过 Tauri 事件 "ai-stream" 推送的流式事件载荷。
- * 使用联合类型按 `type` 字段区分：
- *   - token       — 新增文本片段（最终回答阶段）
- *   - tool_status — 正在执行某工具
- *   - done        — 全部完成，携带工具轮次轨迹
- *   - error       — 发生错误
+ * 后端通过 Tauri 事件 `"ai-stream"` 实时推送的流式进度事件载荷。
+ *
+ * 对应 Rust 端的 `AiStreamEvent` 枚举，通过 `serde(tag = "type")` 序列化为带类型标签的 JSON。
+ * 前端使用 `message_id` 字段过滤属于当前会话的事件，避免并发请求时事件串扰。
+ *
+ * 变体说明：
+ * - `token`       — AI 生成的文本增量片段，最终回答阶段逐字推送，前端实时追加至消息内容。
+ * - `tool_status` — 正在执行某个工具，前端据此清空思考文本并显示工具执行指示器。
+ * - `done`        — 全部轮次完成，携带所有工具调用轨迹；最终文本内容已由 `token` 事件写入。
+ * - `error`       — 流式处理过程中发生了不可恢复的错误。
  */
 type AiStreamEventPayload =
     | { type: "token"; message_id: string; content: string }
@@ -60,22 +100,29 @@ type AiStreamEventPayload =
 // ─── 常量 ─────────────────────────────────────────────────────────────────────
 
 const AI_BOT_ID = "__ai_bot__";
-const AI_BOT_NAME = "AI 助手";
 const STORAGE_KEY = "lanchat_ai_messages";
 
-export { AI_BOT_ID, AI_BOT_NAME };
+export { AI_BOT_ID };
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 /**
- * AI 聊天 Hook — 管理 AI 对话状态与消息发送。
+ * 管理 AI 聊天会话状态与消息发送的核心 Hook。
  *
- * 采用真实流式方案：
- *   1. 调用 `chat_with_ai_stream` 命令（立即返回）启动后台流式任务。
- *   2. 监听 Tauri 事件 `"ai-stream"`，按 `message_id` 过滤当前会话的事件。
- *   3. `token` 事件 → 实时追加内容，用户无需等待完整回复。
- *   4. `tool_status` 事件 → 清空 thinking tokens，显示工具执行指示器。
- *   5. `done` / `error` 事件 → 结束会话，清理监听器。
+ * 采用真实流式方案与 Tauri 事件驱动架构：
+ * 1. 调用对应 Rust Command `chat_with_ai_stream`（立即返回）在后台启动流式推理任务。
+ * 2. 监听 Tauri 事件 `"ai-stream"`，通过 `message_id` 精确匹配当前会话的事件。
+ * 3. `token` 事件 → 实时追加文本内容，用户无需等待完整回复即可看到逐字输出。
+ * 4. `tool_status` 事件 → 清空思考文本，切换为工具执行指示器视图。
+ * 5. `done` / `error` 事件 → 写入最终状态，调用 `finishStream` 清理监听器。
+ *
+ * @returns 包含以下字段的对象：
+ * - `hasKey`       — 后端是否已配置有效的 AI API Key。
+ * - `chatMessages` — 当前会话的消息列表，持久化于 `localStorage`。
+ * - `isLoading`    — 是否正在等待或接收 AI 响应。
+ * - `toolStatus`   — 当前工具执行状态的描述文本，无工具调用时为 `null`。
+ * - `sendMessage`  — 发送用户消息并启动流式 AI 响应的异步函数。
+ * - `clearHistory` — 清空全部对话历史并停止当前流式输出的函数。
  */
 export function useAiChat() {
     const [hasKey, setHasKey] = useState(false);
@@ -115,7 +162,12 @@ export function useAiChat() {
 
     // ── 内部辅助 ──────────────────────────────────────────────────────────────
 
-    /** 取消注册当前事件监听器并重置 loading 状态 */
+    /**
+     * 取消注册当前流式事件监听器并重置全局加载状态。
+     *
+     * 在以下场景中调用：收到 `done` 或 `error` 事件、`invoke` 调用失败、`listen` 注册失败。
+     * 安全地处理 `unlistenRef.current` 为 `null` 的情况（可重复调用）。
+     */
     const finishStream = useCallback(() => {
         unlistenRef.current?.();
         unlistenRef.current = null;
@@ -127,6 +179,20 @@ export function useAiChat() {
 
     // ── 发送消息 ──────────────────────────────────────────────────────────────
 
+    /**
+     * 发送用户消息并通过流式 AI 接口获取回复。
+     *
+     * 对应 Rust Command: `chat_with_ai_stream`
+     *
+     * 执行流程：
+     * 1. 将用户消息与占位的加载消息追加到消息列表。
+     * 2. 注册 `"ai-stream"` 事件监听器（须在 `invoke` 之前完成，避免丢失首个事件）。
+     * 3. 调用 `chat_with_ai_stream` 启动后台流式任务（命令立即返回）。
+     * 4. 通过事件回调实时更新消息内容，直至收到 `done` 或 `error` 事件。
+     *
+     * @param {string} content - 用户输入的消息文本，首尾空白字符会被自动裁剪。
+     *   若内容为空或当前正在加载中，调用将被静默忽略。
+     */
     const sendMessage = useCallback(
         async (content: string) => {
             if (!content.trim() || isLoading) return;
@@ -331,8 +397,13 @@ export function useAiChat() {
 
     // ── 清空对话 ──────────────────────────────────────────────────────────────
 
+    /**
+     * 清空全部对话历史记录，并中止当前正在进行的流式输出。
+     *
+     * 若调用时有活跃的流式任务，会先取消事件监听器以停止后续的状态更新，
+     * 但后端的推理任务仍会继续运行直至自然结束（其事件将因无监听器而被丢弃）。
+     */
     const clearHistory = useCallback(() => {
-        // 清空时如果正在流式输出，先停止监听
         unlistenRef.current?.();
         unlistenRef.current = null;
         setIsLoading(false);
@@ -349,7 +420,5 @@ export function useAiChat() {
         toolStatus,
         sendMessage,
         clearHistory,
-        AI_BOT_ID,
-        AI_BOT_NAME,
     };
 }

@@ -14,8 +14,8 @@ const AVATAR_COLOR_COUNT = 7;
  * 使用简单的多项式哈希算法，将任意昵称映射到
  * `avatar-color-0` ~ `avatar-color-6` 之一。
  *
- * @param name - 用户昵称
- * @returns CSS 类名，如 `"avatar-color-3"`
+ * @param {string} name - 用户昵称。
+ * @returns {string} CSS 类名，如 `"avatar-color-3"`。
  */
 export function getAvatarColorClass(name: string): string {
     let hash = 0;

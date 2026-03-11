@@ -8,10 +8,18 @@ use tauri::Emitter;
 
 const TRACE_RESULT_MAX_CHARS: usize = 2400;
 
-/// 全局复用的 HTTP 客户端（连接池跨请求共享，避免每次重建）
+/// 全局复用的 AI HTTP 客户端，连接池在应用生命周期内持续共享。
 static HTTP_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
 
-/// 获取全局 HTTP 客户端，首次调用时初始化
+/// 获取全局 AI HTTP 客户端，首次调用时完成初始化。
+///
+/// # Returns
+///
+/// * `Ok(&'static reqwest::Client)` - 可复用的全局 HTTP 客户端引用。
+///
+/// # Errors
+///
+/// * 若 `reqwest::Client` 构建失败（极少见），进程将 panic，因为这属于不可恢复的初始化错误。
 fn get_http_client() -> Result<&'static reqwest::Client, String> {
     Ok(HTTP_CLIENT.get_or_init(|| {
         reqwest::Client::builder()
@@ -22,32 +30,60 @@ fn get_http_client() -> Result<&'static reqwest::Client, String> {
 
 // ─── 流式 SSE 内部辅助结构 ─────────────────────────────────────────────────────
 
-/// 用于在 SSE 流中累积单个工具调用的各增量片段
+/// 在 SSE 流解析过程中，用于按 `index` 归并同一个工具调用的各增量片段。
+///
+/// AI API 在流式模式下会将单次工具调用的 `id`、`name`、`arguments`
+/// 分散在多个 chunk 中推送，需在本地累积完整后再执行。
 struct PartialToolCall {
+    /// 工具调用的唯一标识符，由首个包含 `id` 字段的 chunk 赋值。
     id: String,
+    /// 调用类型，AI API 规范中固定为 `"function"`。
     call_type: String,
+    /// 工具函数名称，从各 chunk 的 `function.name` 字段拼接而来。
     name: String,
+    /// 工具参数 JSON 字符串，从各 chunk 的 `function.arguments` 字段拼接而来。
     arguments: String,
 }
 
-/// 调用流式 AI API，逐 token 通过 Tauri 事件推送给前端。
+/// 向 AI API 发起一次流式请求，将收到的文本 token 实时通过 Tauri 事件推送至前端。
 ///
-/// 返回值：`(accumulated_content, completed_tool_calls, finish_reason)`
-/// - `accumulated_content`：本轮模型生成的全部文本（含工具轮的 thinking）
-/// - `completed_tool_calls`：本轮调用的工具列表（finish_reason == "tool_calls" 时非空）
-/// - `finish_reason`：`"stop"` | `"tool_calls"` | 其他
+/// 使用游标扫描方式解析 SSE 字节流：在每个 HTTP chunk 内遍历所有完整行，
+/// 仅在 chunk 末尾执行一次缓冲区截断，总体复杂度为 O(n)。
+///
+/// 若本轮模型选择调用工具（`finish_reason == "tool_calls"`），则文本 token
+/// 为模型的思考内容，已通过 `Token` 事件推送至前端；前端在收到后续 `ToolStatus`
+/// 事件时应清空这些思考文本。
+///
+/// # Arguments
+///
+/// * `api_key`  - DeepSeek API 鉴权密钥。
+/// * `messages` - 本轮请求的完整上下文消息列表。
+/// * `tools`    - 可供模型调用的工具定义列表，传 `None` 时强制模型生成文本回答。
+/// * `app`      - Tauri 应用句柄，用于向前端发射 `Token` 事件。
+/// * `mid`      - 当前流式会话的消息 ID（预分配，避免热路径重复分配）。
+///
+/// # Returns
+///
+/// * `Ok((content, tool_calls, finish_reason))`:
+///   * `content`       - 本轮模型生成的全部文本（含工具轮的思考内容）。
+///   * `tool_calls`    - 本轮解析完成的工具调用列表，`finish_reason == "stop"` 时为空。
+///   * `finish_reason` - 模型停止原因，`"stop"` 表示正常结束，`"tool_calls"` 表示需执行工具。
+///
+/// # Errors
+///
+/// * 若 HTTP 请求发送失败，返回网络错误信息。
+/// * 若 AI API 返回非 2xx 状态码，返回包含状态码与响应体的错误信息。
+/// * 若流式数据读取中途发生 IO 错误，返回对应错误信息。
 async fn call_ai_api_stream(
     api_key: &str,
     messages: &[AiChatMessage],
     tools: Option<&Vec<ToolDefinition>>,
     app: &tauri::AppHandle,
-    // 预分配好的 owned message_id，避免在热路径中重复 to_string()
     mid: &str,
 ) -> Result<(String, Vec<ToolCall>, String), String> {
     let ai_cfg = &config::get().ai;
     let client = get_http_client()?;
 
-    // 构造请求体（手动 json! 以便附加 stream 字段）
     let mut body = serde_json::json!({
         "model": ai_cfg.model,
         "messages": messages,
@@ -74,9 +110,9 @@ async fn call_ai_api_stream(
     }
 
     let mut byte_stream = response.bytes_stream();
-    let mut sse_buf = String::new(); // 未处理字节缓冲（跨 chunk 保留不完整行）
-    let mut content_buf = String::new(); // 本轮累积文本
-    let mut partial_tools: Vec<Option<PartialToolCall>> = Vec::new(); // 按 index 归并
+    let mut sse_buf = String::new(); // 跨 chunk 保留尚未处理的不完整行
+    let mut content_buf = String::new();
+    let mut partial_tools: Vec<Option<PartialToolCall>> = Vec::new(); // 按 index 归并工具调用增量
     let mut finish_reason = String::from("stop");
     let mut done = false;
 
@@ -87,8 +123,7 @@ async fn call_ai_api_stream(
         let bytes = chunk_result.map_err(|e| format!("Stream read error: {}", e))?;
         sse_buf.push_str(&String::from_utf8_lossy(&bytes));
 
-        // 游标扫描：在同一个 chunk 内处理所有完整行，不逐行分配新 String
-        // 每个 chunk 只在结尾做一次截断，总体复杂度从 O(n²) 降为 O(n)
+        // 游标扫描当前 chunk 内所有完整行，避免逐行重新分配 sse_buf（O(n²) → O(n)）
         let mut cursor = 0;
         loop {
             let Some(rel) = sse_buf[cursor..].find('\n') else {
@@ -112,7 +147,7 @@ async fn call_ai_api_stream(
                 break;
             }
 
-            // 用 serde_json::Value 宽松解析，避免 schema 细节不匹配
+            // 宽松解析为 Value，避免因 API 响应 schema 细节变化导致整体解析失败
             let chunk: serde_json::Value = match serde_json::from_str(data) {
                 Ok(v) => v,
                 Err(_) => continue,
@@ -120,7 +155,6 @@ async fn call_ai_api_stream(
 
             let choice = &chunk["choices"][0];
 
-            // 更新 finish_reason
             if let Some(reason) = choice["finish_reason"].as_str() {
                 if !reason.is_empty() {
                     finish_reason = reason.to_string();
@@ -129,7 +163,7 @@ async fn call_ai_api_stream(
 
             let delta = &choice["delta"];
 
-            // ── 文本 token ──
+            // ── 文本 token：实时推送至前端 ──
             if let Some(content) = delta["content"].as_str() {
                 if !content.is_empty() {
                     content_buf.push_str(content);
@@ -143,7 +177,7 @@ async fn call_ai_api_stream(
                 }
             }
 
-            // ── 工具调用增量 ──
+            // ── 工具调用增量：按 index 归并到 partial_tools ──
             if let Some(tc_array) = delta["tool_calls"].as_array() {
                 for tc_val in tc_array {
                     let index = tc_val["index"].as_u64().unwrap_or(0) as usize;
@@ -172,13 +206,12 @@ async fn call_ai_api_stream(
             }
         }
 
-        // 丢弃已消费的字节，保留不完整的尾部行供下次 chunk 拼接
+        // 丢弃已消费字节，保留尾部不完整行供下次 chunk 拼接
         if cursor > 0 {
             sse_buf.drain(..cursor);
         }
     }
 
-    // 将累积的 PartialToolCall 转为完整的 ToolCall（保持 index 顺序）
     let tool_calls: Vec<ToolCall> = partial_tools
         .into_iter()
         .flatten()
@@ -195,12 +228,31 @@ async fn call_ai_api_stream(
     Ok((content_buf, tool_calls, finish_reason))
 }
 
-/// 带工具调用的流式对话主逻辑。
+/// 执行带工具调用能力的多轮流式对话，通过 Tauri 事件向前端实时推送进度。
 ///
-/// 策略：
-/// - 每轮均使用流式 API；工具调用轮次的 Token 事件由前端在收到 ToolStatus 时清除。
-/// - finish_reason == "tool_calls"  → 执行工具，继续下一轮
-/// - finish_reason == "stop"        → 最终回答已流式推送完毕，发送 Done 事件
+/// 每轮均使用流式 API；根据 `finish_reason` 决定后续行为：
+///
+/// * `"tool_calls"` — 执行本轮所有工具调用，将结果追加至上下文后继续下一轮。
+/// * `"stop"`       — 最终回答已通过 `Token` 事件实时推送完毕，发送 `Done` 事件结束会话。
+///
+/// 若达到最大工具调用轮次上限（`max_tool_rounds`），强制发起一次不带工具定义的
+/// 流式请求，迫使模型直接生成文本回答。
+///
+/// # Arguments
+///
+/// * `api_key`    - DeepSeek API 鉴权密钥。
+/// * `messages`   - 初始上下文消息列表，包含系统提示与对话历史。
+/// * `app`        - Tauri 应用句柄，用于向前端发射流式进度事件。
+/// * `message_id` - 当前流式会话的消息唯一标识符，用于前端按会话过滤事件。
+///
+/// # Returns
+///
+/// * `Ok(())` - 对话正常结束，`Done` 事件已发射。
+///
+/// # Errors
+///
+/// * 若任意轮次的 HTTP 请求失败，返回错误信息并同时向前端发射 `Error` 事件。
+/// * 若 AI API 返回非 2xx 状态码，返回包含状态码的错误信息。
 pub async fn chat_with_tools_stream(
     api_key: &str,
     messages: Vec<AiChatMessage>,
@@ -211,7 +263,7 @@ pub async fn chat_with_tools_stream(
     let mut conversation = messages;
     let mut rounds: Vec<ToolRoundTrace> = Vec::new();
 
-    // 预分配一次，避免在每次 emit 调用时重复 to_string()
+    // 预分配一次，避免在每次 emit 时重复调用 to_string()
     let mid = message_id.to_string();
 
     let emit_err = |msg: String| {
@@ -235,14 +287,12 @@ pub async fn chat_with_tools_stream(
             };
 
         if finish_reason == "tool_calls" && !tool_calls.is_empty() {
-            // ── 工具调用轮次 ──────────────────────────────────────────────────
             let thinking = if content.trim().is_empty() {
                 None
             } else {
                 Some(content.clone())
             };
 
-            // 将 assistant 消息（含工具调用）加入上下文
             conversation.push(AiChatMessage {
                 role: "assistant".to_string(),
                 content: thinking
@@ -260,7 +310,6 @@ pub async fn chat_with_tools_stream(
             };
 
             for tc in &tool_calls {
-                // 通知前端当前正在执行的工具
                 let _ = app.emit(
                     "ai-stream",
                     AiStreamEvent::ToolStatus {
@@ -290,7 +339,6 @@ pub async fn chat_with_tools_stream(
 
             rounds.push(round_trace);
         } else {
-            // ── 最终回答（Token 已实时推送完毕）────────────────────────────
             let _ = app.emit(
                 "ai-stream",
                 AiStreamEvent::Done {
@@ -302,16 +350,8 @@ pub async fn chat_with_tools_stream(
         }
     }
 
-    // ── 超过最大工具轮次，强制发起不带工具的最终流式请求 ──────────────────────
-    if let Err(e) = call_ai_api_stream(
-        api_key,
-        &conversation,
-        None, // 不传工具，强制生成文本回答
-        &app,
-        &mid,
-    )
-    .await
-    {
+    // 超出最大工具轮次，不传工具定义以强制模型生成文本回答
+    if let Err(e) = call_ai_api_stream(api_key, &conversation, None, &app, &mid).await {
         emit_err(e.clone());
         return Err(e);
     }
@@ -327,7 +367,17 @@ pub async fn chat_with_tools_stream(
     Ok(())
 }
 
-/// 解析工具参数 JSON；若解析失败则保留原始入参与错误信息。
+/// 将工具参数字符串解析为 JSON Value。
+///
+/// # Arguments
+///
+/// * `raw` - AI 模型生成的工具参数 JSON 字符串。
+///
+/// # Returns
+///
+/// * 解析成功时返回对应的 `serde_json::Value`。
+/// * 解析失败时返回包含 `_raw` 原始字符串与 `_parse_error` 错误信息的 JSON 对象，
+///   确保调用链不中断，同时保留调试信息。
 fn parse_tool_args(raw: &str) -> serde_json::Value {
     match serde_json::from_str::<serde_json::Value>(raw) {
         Ok(v) => v,
@@ -338,7 +388,16 @@ fn parse_tool_args(raw: &str) -> serde_json::Value {
     }
 }
 
-/// 截断工具结果长度，避免前端轨迹渲染内容过大。
+/// 截断工具执行结果的文本长度，防止超长内容导致前端轨迹渲染卡顿。
+///
+/// # Arguments
+///
+/// * `content` - 工具执行返回的原始文本结果。
+///
+/// # Returns
+///
+/// * 若内容未超过 `TRACE_RESULT_MAX_CHARS`，原样返回。
+/// * 若超过上限，截取前 `TRACE_RESULT_MAX_CHARS` 个字符，并在末尾追加省略提示行。
 fn truncate_for_trace(content: &str) -> String {
     let total_len = content.chars().count();
     if total_len <= TRACE_RESULT_MAX_CHARS {
