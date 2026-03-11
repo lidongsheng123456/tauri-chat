@@ -59,9 +59,15 @@ pub fn encode_decode(action: &str, encoding: &str, text: &str) -> String {
             .collect(),
         ("decode", "hex") => {
             let cleaned: String = text.chars().filter(|c| !c.is_whitespace()).collect();
+            if cleaned.len() % 2 != 0 {
+                return format!(
+                    "Hex 解码失败: 输入长度必须为偶数（当前 {} 个字符）",
+                    cleaned.len()
+                );
+            }
             let bytes: Result<Vec<u8>, _> = (0..cleaned.len())
                 .step_by(2)
-                .map(|i| u8::from_str_radix(&cleaned[i..i.min(cleaned.len()) + 2], 16))
+                .map(|i| u8::from_str_radix(&cleaned[i..i + 2], 16))
                 .collect();
             match bytes {
                 Ok(b) => String::from_utf8_lossy(&b).to_string(),

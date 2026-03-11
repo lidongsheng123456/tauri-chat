@@ -158,7 +158,7 @@ pub fn write_file(path: &str, content: &str) -> String {
                 "✅ 文件{}: {} ({} 字符)",
                 action,
                 file_path.display(),
-                content.len()
+                content.chars().count()
             )
         }
         Err(e) => format!("写入文件失败: {}", e),

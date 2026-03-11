@@ -1,4 +1,3 @@
-import { invoke } from "@tauri-apps/api/core";
 import { FileCard } from "@ant-design/x";
 import { Download } from "lucide-react";
 import { useCallback, useState } from "react";
@@ -7,6 +6,7 @@ import { getAvatarColorClass } from "../utils/avatar";
 import { type ChatMessage } from "../types";
 import { getFileIconType } from "../utils/fileIcon";
 import { formatFileSize } from "../utils/format";
+import { tauriInvoke } from "../utils/tauri";
 import { ImagePreview } from "./ImagePreview";
 
 // ─── 类型定义 ─────────────────────────────────────────────────────────────────
@@ -54,16 +54,16 @@ export function MessageBubble({
             if (downloading || downloadDone) return;
             const fileName = message.file_name || "download";
             addTransfer(transferId, "download", fileName);
-            try {
-                await invoke<string>("download_chat_file", {
-                    filePath: message.content,
-                    fileName,
-                    serverUrl,
-                });
+            const result = await tauriInvoke<string>(
+                "download_chat_file",
+                { filePath: message.content, fileName, serverUrl },
+                (err) => {
+                    console.error("文件下载失败:", err);
+                    updateTransfer(transferId, "error");
+                },
+            );
+            if (result !== null) {
                 updateTransfer(transferId, "success");
-            } catch (err) {
-                console.error("文件下载失败:", err);
-                updateTransfer(transferId, "error");
             }
         },
         [

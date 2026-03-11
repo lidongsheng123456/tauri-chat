@@ -1,34 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-/// AI 响应中的单个选项，包含一条消息
-#[derive(Deserialize)]
-pub struct AiChoice {
-    pub message: AiMessage,
-}
-
-/// AI 消息内容，可能包含文本或工具调用
-#[derive(Deserialize)]
-pub struct AiMessage {
-    pub content: Option<String>,
-    pub tool_calls: Option<Vec<ToolCall>>,
-}
-
-/// AI API 完整响应，包含 choices 数组
-#[derive(Deserialize)]
-pub struct AiResponse {
-    pub choices: Vec<AiChoice>,
-}
-
-/// 发送给 AI API 的聊天请求体
-#[derive(Serialize)]
-pub struct AiChatRequest {
-    pub model: String,
-    pub messages: Vec<AiChatMessage>,
-    pub max_tokens: u32,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tools: Option<Vec<ToolDefinition>>,
-}
-
 /// 单次工具执行轨迹，用于前端展示。
 #[derive(Serialize, Clone, Debug)]
 pub struct ToolCallTrace {
@@ -45,13 +16,6 @@ pub struct ToolRoundTrace {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thinking: Option<String>,
     pub tool_calls: Vec<ToolCallTrace>,
-}
-
-/// 返回给前端的完整对话结果。
-#[derive(Serialize, Clone, Debug)]
-pub struct ChatWithToolsResponse {
-    pub summary: String,
-    pub rounds: Vec<ToolRoundTrace>,
 }
 
 /// 单条聊天消息，支持文本、工具调用与工具结果。
@@ -209,4 +173,32 @@ pub struct DeletePathArgs {
 pub struct SearchFilesArgs {
     pub directory: String,
     pub keyword: String,
+}
+
+// ─── 前端流式事件 ─────────────────────────────────────────────────────────────
+
+/// 通过 Tauri 事件系统推送给前端的流式 AI 进度事件。
+/// 使用内部标签 `type` 区分变体，前端按 `message_id` 匹配会话。
+#[derive(Serialize, Clone, Debug)]
+#[serde(tag = "type")]
+pub enum AiStreamEvent {
+    /// AI 生成了一段新文本（最终回答阶段逐 token 推送）
+    #[serde(rename = "token")]
+    Token { message_id: String, content: String },
+    /// 正在执行某个工具（工具调用阶段推送）
+    #[serde(rename = "tool_status")]
+    ToolStatus {
+        message_id: String,
+        status: String,
+        round: usize,
+    },
+    /// 全部完成，携带工具调用轮次轨迹
+    #[serde(rename = "done")]
+    Done {
+        message_id: String,
+        rounds: Vec<ToolRoundTrace>,
+    },
+    /// 发生错误
+    #[serde(rename = "error")]
+    Error { message_id: String, message: String },
 }
